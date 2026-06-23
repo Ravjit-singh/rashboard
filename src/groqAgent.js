@@ -91,7 +91,7 @@ async function runAgent(userPrompt) {
 
             // Step 3: Let the AI formulate the final answer using the new data
             const finalResponse = await groq.chat.completions.create({
-                model: "llama3-70b-8192",
+                model: "llama-3.1-70b-versatile",
                 messages: messages
             });
 
