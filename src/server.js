@@ -15,7 +15,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-
+// Add this line to serve the frontend folder!
+app.use(express.static(path.join(__dirname, '../public')));
 // --- 🧠 GLOBAL MEMORY CACHE ---
 global.systemCache = {
     lastPing: null,
