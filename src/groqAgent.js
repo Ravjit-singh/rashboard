@@ -57,7 +57,7 @@ async function runAgent(userPrompt) {
     try {
         // Step 1: Send the user message and tools to Groq
         const response = await groq.chat.completions.create({
-            model: "llama3-70b-8192", // Fast, powerful open-source model
+            model: "llama-3.1-70b-versatile", // Fast, powerful open-source model
             messages: messages,
             tools: tools,
             tool_choice: "auto"
