@@ -36,9 +36,11 @@
                     animation: {
                         'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both',
                         'ping-slow': 'ping 2.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+                        'pulse-fast': 'pulseFast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     },
                     keyframes: {
                         slideUp: { '0%': { opacity: 0, transform: 'translateY(20px) scale(0.98)' }, '100%': { opacity: 1, transform: 'translateY(0) scale(1)' } },
+                        pulseFast: { '0%, 100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: .7, transform: 'scale(1.05)' } }
                     }
                 }
             }
@@ -71,9 +73,11 @@
         .input-elite { background: rgb(var(--c-base)); border: 1px solid transparent; box-shadow: var(--tw-shadow-inner-input); border-radius: 12px; color: rgb(var(--c-accent)); transition: all 0.2s ease; }
         .input-elite:focus { background: rgb(var(--c-surface)); border-color: rgb(var(--c-accent) / 0.3); outline: none; box-shadow: var(--tw-shadow-inner-input), 0 0 0 3px rgb(var(--c-accent) / 0.05); }
 
-        /* Agent Chat Bubble Styles */
         .chat-bubble-user { background: rgb(59 130 246 / 0.15); border: 1px solid rgb(59 130 246 / 0.3); color: rgb(var(--c-accent)); border-bottom-right-radius: 0; align-self: flex-end; }
         .chat-bubble-agent { background: rgb(var(--c-elevated) / 0.5); border: 1px solid rgb(var(--c-border) / 0.1); color: rgb(var(--c-accent)); border-bottom-left-radius: 0; align-self: flex-start; }
+        
+        /* Voice Mic Styling */
+        .mic-active { color: rgb(239 68 68) !important; background: rgb(239 68 68 / 0.1); border-color: rgb(239 68 68 / 0.3) !important; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden selection:bg-accent selection:text-accentInv">
@@ -125,34 +129,46 @@
         <div class="flex-1 p-10 text-center text-muted">Workspace content loaded here</div>
     </main>
 
-    <!-- 🤖 OPTIMIZED AGENT VIEW 🤖 -->
+    <!-- 🤖 COMMAND CENTER VIEW -->
     <main id="view-agent" class="flex-1 flex flex-col h-screen overflow-hidden relative z-10 bg-base">
-        <!-- Header (Fixed at top of flex container) -->
-        <header class="bg-surface/80 backdrop-blur-xl border-b border-borderline/5 px-6 md:px-10 py-4 md:py-6 shrink-0 z-20 shadow-sm">
-            <h1 class="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-3">
-                Command Center
-                <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
-            </h1>
-            <p class="text-xs text-muted mt-1 font-medium">Agentic system monitoring active.</p>
+        <!-- Header -->
+        <header class="bg-surface/80 backdrop-blur-xl border-b border-borderline/5 px-6 md:px-10 py-4 md:py-6 shrink-0 z-20 shadow-sm flex justify-between items-center">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-3">
+                    Command Center
+                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
+                </h1>
+                <p class="text-xs text-muted mt-1 font-medium">Agentic system monitoring active.</p>
+            </div>
+            
+            <!-- Voice Audio Toggle -->
+            <button id="voice-toggle-btn" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-borderline/10 bg-elevated/50 hover:bg-borderline/10 transition-colors text-xs font-bold text-muted">
+                <svg id="voice-icon" class="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+                <span id="voice-status-text">SILENT</span>
+            </button>
         </header>
 
-        <!-- Chat History (Scrollable Area) -->
+        <!-- Chat History -->
         <div class="flex-1 overflow-y-auto hide-scroll p-4 md:p-8 flex flex-col gap-4 w-full" id="chat-box">
-            <!-- Wrapper for max-width centering -->
             <div class="max-w-4xl mx-auto w-full flex flex-col gap-4" id="chat-content-wrapper">
                 <div class="chat-bubble-agent p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up">
-                    <p>System initialized. I am tapped into your global cache and deployment telemetry. Ask me about your project statuses.</p>
+                    <p>System initialized. You can type commands or tap the microphone to speak to me.</p>
                 </div>
             </div>
         </div>
 
-        <!-- Input Area (Pushed to bottom, sits above mobile dock) -->
+        <!-- Input Area -->
         <div class="bg-surface/80 backdrop-blur-xl border-t border-borderline/5 p-4 pb-28 md:pb-8 shrink-0 z-30">
             <form id="chat-form" class="max-w-4xl mx-auto relative flex items-center">
+                <!-- Microphone Button inside input -->
+                <button type="button" id="mic-btn" class="absolute left-3 text-muted hover:text-accent transition-colors p-2 rounded-full border border-transparent z-10" title="Hold or tap to speak">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                </button>
+                
                 <input 
                     type="text" 
                     id="message-input" 
-                    class="w-full input-elite pl-4 pr-28 py-4 text-sm outline-none placeholder:text-muted/50" 
+                    class="w-full input-elite pl-12 pr-28 py-4 text-sm outline-none placeholder:text-muted/50" 
                     placeholder="Ask agent..." 
                     autocomplete="off"
                     required
@@ -183,15 +199,113 @@
             document.getElementById('view-agent').style.display = view === 'agent' ? 'flex' : 'none';
             document.getElementById('view-settings').style.display = view === 'settings' ? 'flex' : 'none';
             
-            // Desktop Nav
             document.getElementById('nav-btn-workspace').className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${view === 'workspace' ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
             document.getElementById('nav-btn-agent').className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${view === 'agent' ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
             document.getElementById('nav-btn-settings').className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${view === 'settings' ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
             
-            // Mobile Nav
             document.getElementById('mob-nav-btn-workspace').className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${view === 'workspace' ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
             document.getElementById('mob-nav-btn-agent').className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${view === 'agent' ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
             document.getElementById('mob-nav-btn-settings').className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${view === 'settings' ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
+        }
+
+        // --- 🎙️ NATIVE VOICE ENGINE (STT & TTS) ---
+        let voiceResponseEnabled = false;
+        const voiceToggleBtn = document.getElementById('voice-toggle-btn');
+        const voiceIcon = document.getElementById('voice-icon');
+        const voiceStatusText = document.getElementById('voice-status-text');
+        
+        // Setup Text-to-Speech (TTS)
+        voiceToggleBtn.addEventListener('click', () => {
+            voiceResponseEnabled = !voiceResponseEnabled;
+            if (voiceResponseEnabled) {
+                voiceStatusText.textContent = "AUDIO ON";
+                voiceToggleBtn.classList.replace('text-muted', 'text-blue-400');
+                voiceIcon.classList.replace('text-muted', 'text-blue-400');
+                // Change icon to volume-up
+                voiceIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.898a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>`;
+            } else {
+                voiceStatusText.textContent = "SILENT";
+                voiceToggleBtn.classList.replace('text-blue-400', 'text-muted');
+                voiceIcon.classList.replace('text-blue-400', 'text-muted');
+                window.speechSynthesis.cancel(); // Stop talking if toggled off
+                // Change icon to volume-off
+                voiceIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>`;
+            }
+        });
+
+        function speakAgentText(text) {
+            if (!voiceResponseEnabled || !window.speechSynthesis) return;
+            window.speechSynthesis.cancel(); // Interrupt previous speech
+            
+            // Clean markdown (**, *, #) so it sounds natural
+            const cleanText = text.replace(/[*#]/g, '').replace(/_/g, ' ');
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            
+            // Optional: Slight tweaks to make it sound more like an AI assistant
+            utterance.rate = 1.05;
+            utterance.pitch = 1.0;
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Setup Speech-to-Text (Voice Recognition)
+        const micBtn = document.getElementById('mic-btn');
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let isListening = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false; // Only get final sentence
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                micBtn.classList.add('mic-active', 'animate-pulse-fast');
+                messageInput.placeholder = "Listening...";
+                messageInput.disabled = true; // Prevent typing while talking
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                messageInput.value = transcript;
+                // Auto-submit the form once speech is recognized
+                chatForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech Recognition Error:", event.error);
+                resetMicState();
+            };
+
+            recognition.onend = () => {
+                resetMicState();
+            };
+
+            micBtn.addEventListener('click', () => {
+                if (isListening) {
+                    recognition.stop();
+                } else {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.log("Mic already started");
+                    }
+                }
+            });
+        } else {
+            // Hide mic button if browser doesn't support it (extremely rare on modern Chrome/Android)
+            micBtn.style.display = 'none';
+            messageInput.classList.remove('pl-12');
+            messageInput.classList.add('pl-4');
+        }
+
+        function resetMicState() {
+            isListening = false;
+            micBtn.classList.remove('mic-active', 'animate-pulse-fast');
+            messageInput.placeholder = "Ask agent...";
+            messageInput.disabled = false;
         }
 
         // --- 🤖 Agent Chat Logic & Auto-Scroll ---
@@ -203,18 +317,17 @@
 
         function appendMessage(text, isUser) {
             const div = document.createElement('div');
-            div.className = `p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up ${
+            // Parse basic markdown bolding (**) for UI rendering
+            let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            div.className = `p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up leading-relaxed ${
                 isUser ? 'chat-bubble-user' : 'chat-bubble-agent'
             }`;
-            div.textContent = text;
+            div.innerHTML = formattedText;
             chatWrapper.appendChild(div);
             
-            // Smooth Auto-Scroll to the absolute bottom
             setTimeout(() => {
-                chatBox.scrollTo({
-                    top: chatBox.scrollHeight,
-                    behavior: 'smooth'
-                });
+                chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
             }, 50);
         }
 
@@ -223,10 +336,12 @@
             const message = messageInput.value.trim();
             if (!message) return;
 
+            // Stop any ongoing TTS if the user interrupts with a new message
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+
             appendMessage(message, true);
             messageInput.value = '';
             
-            // Loading State
             sendBtn.innerHTML = `<span class="w-4 h-4 border-2 border-accentInv border-t-transparent rounded-full animate-spin"></span>`;
             sendBtn.disabled = true;
 
@@ -238,23 +353,19 @@
                 });
                 
                 const data = await response.json();
+                
                 appendMessage(data.response, false);
+                speakAgentText(data.response); // Trigger TTS
                 
             } catch (error) {
                 appendMessage("System Error: Failed to reach the Core router.", false);
             } finally {
-                // Reset State
                 sendBtn.innerHTML = `SEND <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>`;
                 sendBtn.disabled = false;
-                
-                // Keep input focused on desktop for quick typing
-                if (window.innerWidth > 768) {
-                    messageInput.focus();
-                }
+                if (window.innerWidth > 768 && !isListening) messageInput.focus();
             }
         });
 
-        // Initialize Command Center as default view for testing
         switchView('agent');
     </script>
 </body>
