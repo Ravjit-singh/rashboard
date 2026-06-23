@@ -57,7 +57,7 @@ async function runAgent(userPrompt) {
     try {
         // Step 1: Send the user message and tools to Groq
         const response = await groq.chat.completions.create({
-            model: "llama-3.1-70b-versatile", // Fast, powerful open-source model
+            model: "llama-3.3-70b-versatile", // Fast, powerful open-source model
             messages: messages,
             tools: tools,
             tool_choice: "auto"
@@ -91,7 +91,7 @@ async function runAgent(userPrompt) {
 
             // Step 3: Let the AI formulate the final answer using the new data
             const finalResponse = await groq.chat.completions.create({
-                model: "llama-3.1-70b-versatile",
+                model: "llama-3.3-70b-versatile",
                 messages: messages
             });
 
