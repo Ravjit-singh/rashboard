@@ -367,6 +367,60 @@
         });
 
         switchView('agent');
+        
+        // Add this right after your variables are declared at the top of the <script>
+async function syncArchitecture() {
+    try {
+        await fetch('/api/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projects: projects })
+        });
+        console.log("Vault synced with Backend Agent");
+    } catch (e) {
+        console.error("Failed to sync with backend", e);
+    }
+}
+
+// 1. Update your init() function to sync on boot:
+function init() {
+    if (projects.length === 0 && localStorage.getItem('rashboard_v12')) {
+        projects = JSON.parse(localStorage.getItem('rashboard_v12'));
+        localStorage.setItem('rashboard_v13', JSON.stringify(projects));
+    }
+    projects.forEach(p => { const keys = Object.keys(p.tabs || {}); if(keys.length && !activeTabs[p.id]) activeTabs[p.id] = keys[0]; });
+    saveStateMeta();
+    setupKeyboardShortcuts();
+    renderProjects();
+    pingAll();
+    syncArchitecture(); // <-- ADD THIS LINE
+    setInterval(pingAll, 30000);
+}
+
+// 2. Update your saveProject() function to sync when you create/edit a project:
+function saveProject() {
+    // ... (existing variable definitions) ...
+
+    if (editingProjectId) {
+        const i = projects.findIndex(p => p.id === editingProjectId);
+        if (i > -1) { 
+            projects[i] = { ...projects[i], name: n, liveUrl: l, ghRepo: g, autoPages: autoP, ghPagesUrl: cP, tabs: grp }; 
+            const currentActive = activeTabs[editingProjectId];
+            if (!grp[currentActive]) activeTabs[editingProjectId] = Object.keys(grp)[0] || null; 
+        }
+    } else {
+        const id = crypto.randomUUID(); projects.unshift({ id, name: n, liveUrl: l, ghRepo: g, autoPages: autoP, ghPagesUrl: cP, tabs: grp }); activeTabs[id] = Object.keys(grp)[0] || null;
+    }
+
+    localStorage.setItem('rashboard_v13', JSON.stringify(projects)); 
+    saveStateMeta(); 
+    renderProjects(); 
+    pingAll(); 
+    syncArchitecture(); // <-- ADD THIS LINE
+    closeCreator(); 
+    showToast("System synchronized", "success");
+}
+
     </script>
 </body>
 </html>
