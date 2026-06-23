@@ -2,76 +2,247 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rashboard Command Center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Rashboard | Studio</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="apple-touch-icon" href="./icon-512.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Geist', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                        mono: ['Geist Mono', 'ui-monospace', 'monospace'],
+                    },
+                    colors: {
+                        base: 'rgb(var(--c-base) / <alpha-value>)',
+                        surface: 'rgb(var(--c-surface) / <alpha-value>)',
+                        elevated: 'rgb(var(--c-elevated) / <alpha-value>)',
+                        borderline: 'rgb(var(--c-border) / <alpha-value>)',
+                        accent: 'rgb(var(--c-accent) / <alpha-value>)',
+                        accentInv: 'rgb(var(--c-accent-inv) / <alpha-value>)',
+                        muted: 'rgb(var(--c-muted) / <alpha-value>)'
+                    },
+                    boxShadow: {
+                        'elite': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 10px 40px -10px rgba(0,0,0,0.4)',
+                        'elite-hover': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 20px 40px -10px rgba(0,0,0,0.5)',
+                        'inner-input': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                        'float': '0 20px 40px -10px rgba(0,0,0,0.5), inset 0 1px 0 0 rgba(255,255,255,0.1)',
+                    },
+                    animation: {
+                        'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
+                        'ping-slow': 'ping 2.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+                        'fade-in': 'fadeIn 0.4s ease-out forwards',
+                        'loading-bar': 'loadingBar 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                    },
+                    keyframes: {
+                        slideUp: { '0%': { opacity: 0, transform: 'translateY(30px) scale(0.98)' }, '100%': { opacity: 1, transform: 'translateY(0) scale(1)' } },
+                        fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
+                        loadingBar: { '0%': { width: '0%' }, '40%': { width: '60%' }, '100%': { width: '100%' } }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        /* Custom scrollbar for a premium feel */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+        
+        :root {
+            --c-base: 0 0 0; --c-surface: 9 9 11; --c-elevated: 24 24 27; --c-border: 255 255 255;
+            --c-accent: 255 255 255; --c-accent-inv: 0 0 0; --c-muted: 161 161 170;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --c-base: 250 250 250; --c-surface: 255 255 255; --c-elevated: 244 244 245; --c-border: 0 0 0;
+                --c-accent: 9 9 11; --c-accent-inv: 255 255 255; --c-muted: 113 113 122;
+            }
+        }
+        
+        body { background-color: rgb(var(--c-base)); color: rgb(var(--c-accent)); -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+        ::-webkit-scrollbar { display: none; } .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .logo-invert { transition: filter 0.3s ease; }
+        @media (prefers-color-scheme: light) { .logo-invert { filter: invert(1); } }
+
+        .ambient-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle at 50% 0%, rgba(59,130,246,0.04) 0%, rgba(0,0,0,0) 60%); pointer-events: none; z-index: 0; }
+        @media (prefers-color-scheme: light) { .ambient-glow { background: radial-gradient(circle at 50% 0%, rgba(0,0,0,0.02) 0%, rgba(255,255,255,0) 60%); } }
+        
+        .glass-card { background: linear-gradient(180deg, rgb(var(--c-surface)), rgb(var(--c-base))); border-radius: 20px; box-shadow: var(--tw-shadow-elite); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative; z-index: 10; }
+        .glass-card:hover { box-shadow: var(--tw-shadow-elite-hover); transform: translateY(-2px); border-color: rgb(var(--c-border) / 0.15); }
+
+        .expandable-wrapper { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .expandable-wrapper.expanded { grid-template-rows: 1fr; }
+        .expandable-inner { overflow: hidden; }
+        
+        .vault-content-container { transition: opacity 0.2s ease-in-out; }
+
+        .input-elite { background: rgb(var(--c-base)); border: 1px solid transparent; box-shadow: var(--tw-shadow-inner-input); border-radius: 12px; color: rgb(var(--c-accent)); transition: all 0.2s ease; }
+        .input-elite:focus { background: rgb(var(--c-surface)); border-color: rgb(var(--c-accent) / 0.3); outline: none; box-shadow: var(--tw-shadow-inner-input), 0 0 0 3px rgb(var(--c-accent) / 0.05); }
+
+        .dropzone-elite { border: 1.5px dashed rgb(var(--c-border) / 0.15); border-radius: 16px; background: rgb(var(--c-elevated) / 0.3); transition: all 0.3s ease; position: relative; }
+        .dropzone-elite.dragover { border-color: rgb(var(--c-accent)); background: rgb(var(--c-accent) / 0.05); transform: scale(1.02); }
+
+        .elite-tab { color: rgb(var(--c-muted)); transition: all 0.2s ease; position: relative; }
+        .elite-tab:hover { color: rgb(var(--c-accent)); }
+        .elite-tab.active { color: rgb(var(--c-accent)); font-weight: 600; }
+        .elite-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: rgb(var(--c-accent)); border-radius: 2px 2px 0 0; }
+        
+        .modal-overlay { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; backdrop-filter: blur(5px); }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content { opacity: 0; transform: translateY(20px) scale(0.98); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .modal-overlay.active .modal-content { opacity: 1; transform: translateY(0) scale(1); }
+
+        .dock-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid; transition: all 0.2s ease; }
+        .dock-pill:hover { opacity: 0.8; transform: scale(0.98); }
+
+        /* Agent Chat Bubble Styles */
+        .chat-bubble-user { background: rgb(59 130 246 / 0.15); border: 1px solid rgb(59 130 246 / 0.3); color: rgb(var(--c-accent)); border-bottom-right-radius: 0; align-self: flex-end; }
+        .chat-bubble-agent { background: rgb(var(--c-elevated) / 0.5); border: 1px solid rgb(var(--c-border) / 0.1); color: rgb(var(--c-accent)); border-bottom-left-radius: 0; align-self: flex-start; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-200 h-screen flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+<body class="flex h-screen overflow-hidden selection:bg-accent selection:text-accentInv">
     
-    <header class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center shadow-lg">
-        <div class="flex items-center gap-3">
-            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-            <h1 class="text-xl font-bold tracking-wider text-slate-100">RASHBOARD <span class="text-blue-500 font-mono text-sm ml-2">v2.0</span></h1>
-        </div>
-        <div class="text-xs font-mono text-slate-500" id="connection-status">Connecting to Core...</div>
-    </header>
+    <div class="ambient-glow"></div>
 
-    <main class="flex-1 overflow-y-auto p-4 flex flex-col gap-4" id="chat-box">
-        <div class="bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl max-w-[85%] self-start shadow-sm backdrop-blur-sm">
-            <p class="text-sm">System initialized. I am monitoring your deployment telemetry. What would you like to check?</p>
+    <nav class="hidden md:flex flex-col w-[260px] h-screen bg-surface border-r border-borderline/5 z-40 shrink-0 relative">
+        <div class="flex items-center gap-3 px-8 pt-8 mb-10">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-[0_4px_14px_rgba(0,0,0,0.25)] overflow-hidden border border-borderline/10 bg-black">
+                <img src="./icon-512.png" alt="Logo" class="w-full h-full object-cover logo-invert" onerror="this.style.display='none'" />
+            </div>
+            <span class="font-bold tracking-tight text-xl">Rashboard</span>
+        </div>
+        <div class="flex flex-col gap-1.5 px-4 w-full" id="nav-desktop">
+            <button onclick="switchView('workspace')" id="nav-btn-workspace" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl bg-elevated/50 text-accent font-semibold text-sm border border-borderline/5 shadow-inner-light transition-all">
+                <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                Environments
+            </button>
+            <button onclick="switchView('agent')" id="nav-btn-agent" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl text-muted hover:text-accent hover:bg-elevated/30 font-medium text-sm transition-all border border-transparent">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Command Center
+            </button>
+            <button onclick="switchView('settings')" id="nav-btn-settings" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl text-muted hover:text-accent hover:bg-elevated/30 font-medium text-sm transition-all border border-transparent">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Preferences
+            </button>
+        </div>
+    </nav>
+
+    <nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface/90 backdrop-blur-xl border border-borderline/10 z-40 flex items-center justify-between px-1.5 py-1.5 rounded-[2rem] shadow-float w-[90%] max-w-sm">
+        <button onclick="switchView('workspace')" id="mob-nav-btn-workspace" class="mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full bg-elevated/80 text-accent transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+        </button>
+        <button onclick="switchView('agent')" id="mob-nav-btn-agent" class="mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full text-muted hover:text-accent transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        </button>
+        <button onclick="switchView('settings')" id="mob-nav-btn-settings" class="mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full text-muted hover:text-accent transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        </button>
+    </nav>
+
+    <main id="view-workspace" class="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
+        <header class="bg-base/60 backdrop-blur-2xl border-b border-borderline/5 px-6 md:px-10 py-5 md:py-6 flex flex-col md:flex-row justify-between md:items-center gap-4 shrink-0 z-20">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Overview</h1>
+                <p class="text-[13px] text-muted mt-1 font-medium">Cloud architecture dashboard.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="openCreator()" class="bg-accent text-accentInv px-6 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-all items-center gap-2 active:scale-95 shadow-[0_4px_14px_rgba(255,255,255,0.15)] shrink-0">
+                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                    Deploy Config
+                </button>
+            </div>
+        </header>
+        <div class="flex-1 overflow-y-auto hide-scroll p-4 md:p-8 pb-32 md:pb-10 relative">
+            <div id="project-grid" class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6 max-w-[1800px] mx-auto w-full items-start"></div>
         </div>
     </main>
 
-    <footer class="bg-slate-900 border-t border-slate-800 p-4">
-        <form id="chat-form" class="flex gap-2 max-w-4xl mx-auto">
-            <input 
-                type="text" 
-                id="message-input" 
-                class="flex-1 bg-slate-950 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3 outline-none transition-all placeholder-slate-500" 
-                placeholder="Ask about Skillmax or RChat status..." 
-                required
-            >
-            <button 
-                type="submit" 
-                class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-3 text-center transition-all flex items-center justify-center min-w-[100px]"
-                id="send-btn"
-            >
-                Execute
-            </button>
-        </form>
-    </footer>
+    <main id="view-agent" class="hidden flex-1 flex-col h-screen overflow-hidden relative z-10">
+        <header class="bg-base/60 backdrop-blur-2xl border-b border-borderline/5 px-6 md:px-10 py-5 md:py-6 flex justify-between items-center shrink-0 z-20">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-3">
+                    Command Center
+                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
+                </h1>
+                <p class="text-[13px] text-muted mt-1 font-medium">Agentic system monitoring active.</p>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto hide-scroll p-4 md:p-8 pb-32 md:pb-32 flex flex-col gap-4 w-full max-w-4xl mx-auto" id="chat-box">
+            <div class="chat-bubble-agent p-4 rounded-2xl max-w-[85%] text-sm shadow-inner-light animate-slide-up">
+                <p>System initialized. I am tapped into your global cache and deployment telemetry. Ask me about your project statuses.</p>
+            </div>
+        </div>
+
+        <div class="absolute bottom-0 left-0 w-full bg-base/80 backdrop-blur-xl border-t border-borderline/5 p-4 md:p-6 pb-24 md:pb-6 z-30">
+            <form id="chat-form" class="max-w-4xl mx-auto relative flex items-center">
+                <input 
+                    type="text" 
+                    id="message-input" 
+                    class="w-full input-elite pl-4 pr-24 py-4 text-sm outline-none placeholder:text-muted/60" 
+                    placeholder="E.g. What is the status of skillmax_mk2?" 
+                    autocomplete="off"
+                    required
+                >
+                <button 
+                    type="submit" 
+                    id="send-btn"
+                    class="absolute right-2 bg-accent text-accentInv hover:opacity-90 font-bold rounded-lg text-xs px-4 py-2 transition-all active:scale-95 shadow-[0_2px_10px_rgba(255,255,255,0.1)]"
+                >
+                    EXECUTE
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <main id="view-settings" class="hidden flex-1 flex-col h-screen overflow-hidden relative z-10">
+        <header class="bg-base/60 backdrop-blur-2xl border-b border-borderline/5 px-6 md:px-10 py-5 md:py-8 shrink-0 z-20">
+            <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Preferences</h1>
+        </header>
+        <div class="p-10 text-center text-muted">Settings placeholder (Your original logic kept safe!)</div>
+    </main>
+
+    <div id="creator-backdrop" class="fixed inset-0 bg-base/80 z-50 hidden items-end md:items-center justify-center modal-overlay p-0 md:p-6">
+        </div>
+
+    <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 md:top-auto md:left-auto md:bottom-8 md:right-8 bg-surface border border-borderline/10 text-accent px-5 py-3.5 rounded-2xl flex items-center gap-3 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 z-[70] shadow-inner-light">
+        <div id="toast-icon" class="w-5 h-5 shrink-0 rounded-full flex items-center justify-center border"></div>
+        <span id="toast-msg" class="text-sm font-bold tracking-tight"></span>
+    </div>
 
     <script>
+        // --- Navigation Logic Update ---
+        function switchView(view) {
+            document.getElementById('view-workspace').style.display = view === 'workspace' ? 'flex' : 'none';
+            document.getElementById('view-agent').style.display = view === 'agent' ? 'flex' : 'none';
+            document.getElementById('view-settings').style.display = view === 'settings' ? 'flex' : 'none';
+            
+            // Desktop Nav
+            document.getElementById('nav-btn-workspace').className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${view === 'workspace' ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
+            document.getElementById('nav-btn-agent').className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${view === 'agent' ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
+            document.getElementById('nav-btn-settings').className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${view === 'settings' ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
+            
+            // Mobile Nav
+            document.getElementById('mob-nav-btn-workspace').className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${view === 'workspace' ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
+            document.getElementById('mob-nav-btn-agent').className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${view === 'agent' ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
+            document.getElementById('mob-nav-btn-settings').className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${view === 'settings' ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
+        }
+
+        // --- 🤖 Agent Chat Logic ---
         const chatForm = document.getElementById('chat-form');
         const messageInput = document.getElementById('message-input');
         const chatBox = document.getElementById('chat-box');
         const sendBtn = document.getElementById('send-btn');
-        const statusText = document.getElementById('connection-status');
 
-        // Check backend connection on load
-        fetch('http://localhost:3000/api/health')
-            .then(res => res.json())
-            .then(data => {
-                statusText.textContent = "Core Online";
-                statusText.classList.replace('text-slate-500', 'text-green-400');
-            })
-            .catch(err => {
-                statusText.textContent = "Core Offline";
-                statusText.classList.replace('text-slate-500', 'text-red-400');
-            });
-
-        function addMessage(text, isUser = false) {
+        function appendMessage(text, isUser) {
             const div = document.createElement('div');
-            div.className = `p-4 rounded-xl max-w-[85%] text-sm shadow-sm backdrop-blur-sm ${
-                isUser 
-                ? 'bg-blue-600 text-white self-end rounded-br-none' 
-                : 'bg-slate-800/50 border border-slate-700/50 self-start rounded-bl-none text-slate-200'
+            div.className = `p-4 rounded-2xl max-w-[85%] text-sm shadow-inner-light animate-slide-up ${
+                isUser ? 'chat-bubble-user' : 'chat-bubble-agent'
             }`;
             div.textContent = text;
             chatBox.appendChild(div);
@@ -83,31 +254,32 @@
             const message = messageInput.value.trim();
             if (!message) return;
 
-            // UI Updates
-            addMessage(message, true);
+            appendMessage(message, true);
             messageInput.value = '';
-            sendBtn.textContent = 'Processing...';
+            sendBtn.textContent = '...';
             sendBtn.disabled = true;
 
             try {
-                // Call the Node.js Agent
-                const response = await fetch('http://localhost:3000/api/chat', {
+                // Since the HTML is now served by Express, we can use a relative path!
+                const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message })
                 });
                 
                 const data = await response.json();
-                addMessage(data.response);
+                appendMessage(data.response, false);
                 
             } catch (error) {
-                addMessage("System Error: Failed to connect to Rashboard Core.");
+                appendMessage("System Error: Failed to reach the Core router.", false);
             } finally {
-                sendBtn.textContent = 'Execute';
+                sendBtn.textContent = 'EXECUTE';
                 sendBtn.disabled = false;
             }
         });
+
+        // Initialize Workspace as default view
+        switchView('workspace');
     </script>
 </body>
 </html>
-
