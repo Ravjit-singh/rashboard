@@ -49,12 +49,12 @@ const tools = [
         type: "function",
         function: {
             name: "querySupabaseDatabase",
-            description: "Fetch live production data directly from a project's Supabase database. Use this to count users, check recent records, etc.",
+            description: "Fetch live production data directly from a project's Supabase database. Use this to count rows or check recent records.",
             parameters: {
                 type: "object",
                 properties: {
                     projectName: { type: "string", description: "The exact name of the project to pull credentials for." },
-                    tableName: { type: "string", description: "The exact name of the database table (e.g., 'users', 'profiles', 'posts')." },
+                    tableName: { type: "string", description: "The exact name of the database table (e.g., 'pros', 'users', 'profiles')." },
                     selectQuery: { type: "string", description: "Set to 'count' to get the total row count, or '*' to get actual row data." },
                     limit: { type: "number", description: "Max rows to fetch if pulling data. Default is 5. Max 20." }
                 },
@@ -64,7 +64,7 @@ const tools = [
     }
 ];
 
-// --- ⚙️ TOOL EXECUTION LOGIC (Now Async!) ---
+// --- ⚙️ TOOL EXECUTION LOGIC ---
 async function executeTool(toolName, toolArgs) {
     console.log(`[AGENT] Executing tool: ${toolName} with args:`, toolArgs);
     
@@ -91,27 +91,36 @@ async function executeTool(toolName, toolArgs) {
         if (!project) return JSON.stringify({ error: "Project not found in UI vault." });
 
         let supaUrl = '';
-        let supaKey = '';
+        let anonKey = '';
+        let serviceKey = '';
         
         // Magically find the Supabase keys in the chaotic vault
         Object.values(project.tabs || {}).flat().forEach(v => {
             const k = (v.key || '').toUpperCase();
             const val = (v.value || '').trim();
             if (val.includes('supabase.co')) supaUrl = val;
-            if ((k.includes('ANON') || k.includes('KEY') || k.includes('SERVICE')) && val.startsWith('eyJ')) supaKey = val;
+            if (val.startsWith('eyJ')) {
+                // Explicitly separate Service Role and Anon keys
+                if (k.includes('SERVICE') || k.includes('ROLE')) serviceKey = val;
+                else if (k.includes('ANON')) anonKey = val;
+                else if (!anonKey) anonKey = val; 
+            }
         });
 
-        if (!supaUrl || !supaKey) {
-            return JSON.stringify({ error: "Missing Supabase URL or Anon Key in the project's Rashboard vault." });
+        // PRIORITY: Use Service Role (God Mode) if it exists, otherwise fallback to Anon
+        const activeKey = serviceKey || anonKey;
+
+        if (!supaUrl || !activeKey) {
+            return JSON.stringify({ error: "Missing Supabase URL or Key in the project's Rashboard vault." });
         }
 
         const baseUrl = supaUrl.replace(/\/$/, '') + '/rest/v1/' + toolArgs.tableName;
-        const limit = Math.min(toolArgs.limit || 5, 20); // Protect AI context window
+        const limit = Math.min(toolArgs.limit || 5, 20);
         
         try {
             const headers = {
-                'apikey': supaKey,
-                'Authorization': `Bearer ${supaKey}`,
+                'apikey': activeKey,
+                'Authorization': `Bearer ${activeKey}`,
                 'Content-Type': 'application/json'
             };
 
@@ -125,7 +134,6 @@ async function executeTool(toolName, toolArgs) {
                 fetchUrl += `?select=${toolArgs.selectQuery || '*'}&limit=${limit}`;
             }
 
-            // Native Node Fetch
             const dbRes = await fetch(fetchUrl, { headers });
             
             if (!dbRes.ok) {
@@ -189,7 +197,6 @@ async function runAgent(userPrompt) {
         if (toolCalls) {
             messages.push(responseMessage);
             for (const toolCall of toolCalls) {
-                // AWAIT added here for the network requests!
                 const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
                 messages.push({ tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse });
             }
