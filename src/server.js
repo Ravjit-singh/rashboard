@@ -35,6 +35,26 @@ app.post('/api/sync', (req, res) => {
         res.status(400).json({ error: "Invalid payload" });
     }
 });
+const { loadChats } = require('./database');
+
+// --- 📜 FETCH CHAT HISTORY ENDPOINT ---
+app.get('/api/history', (req, res) => {
+    const rawChats = loadChats();
+    
+    // We only want to send human-readable messages to the UI.
+    // We filter out the raw system 'tool' JSON data so the chat looks clean.
+    const displayChats = rawChats.filter(msg => 
+        msg.role === 'user' || (msg.role === 'assistant' && msg.content !== null)
+    );
+    
+    res.json({ history: displayChats });
+});
+// --- 🗑️ CLEAR CHAT HISTORY ENDPOINT ---
+app.delete('/api/history', (req, res) => {
+    const { clearHistory } = require('./contextWindow');
+    clearHistory(); // Wipes the RAM and the JSON file
+    res.json({ success: true });
+});
 
 // --- ⚙️ AUTOMATION: The 48-Hour Pinger ---
 cron.schedule('0 0 */2 * *', async () => {
