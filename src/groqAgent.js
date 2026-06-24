@@ -14,7 +14,7 @@ if (!fs.existsSync(MEMORY_FILE)) {
     }, null, 2));
 }
 
-// Static, bulletproof schemas prevent Groq parsing errors
+// --- 🛠️ THE AI TOOLBELT ---
 const tools = [
     {
         type: "function",
@@ -44,18 +44,34 @@ const tools = [
                 required: ["topic", "information"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "querySupabaseDatabase",
+            description: "Fetch live production data directly from a project's Supabase database. Use this to count users, check recent records, etc.",
+            parameters: {
+                type: "object",
+                properties: {
+                    projectName: { type: "string", description: "The exact name of the project to pull credentials for." },
+                    tableName: { type: "string", description: "The exact name of the database table (e.g., 'users', 'profiles', 'posts')." },
+                    selectQuery: { type: "string", description: "Set to 'count' to get the total row count, or '*' to get actual row data." },
+                    limit: { type: "number", description: "Max rows to fetch if pulling data. Default is 5. Max 20." }
+                },
+                required: ["projectName", "tableName"]
+            }
+        }
     }
 ];
 
-function executeTool(toolName, toolArgs) {
+// --- ⚙️ TOOL EXECUTION LOGIC (Now Async!) ---
+async function executeTool(toolName, toolArgs) {
     console.log(`[AGENT] Executing tool: ${toolName} with args:`, toolArgs);
     
     if (toolName === "getProjectStatus") {
         const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase() === toolArgs.projectName.toLowerCase());
-        if (project) {
-            return JSON.stringify({ name: project.name, liveUrl: project.liveUrl, vaultKeys: project.tabs || {}, status: "Found" });
-        }
-        return JSON.stringify({ error: `Project '${toolArgs.projectName}' not found in Node.js memory. Remind the user to map it in the UI.` });
+        if (project) return JSON.stringify({ name: project.name, liveUrl: project.liveUrl, vaultKeys: project.tabs || {}, status: "Found" });
+        return JSON.stringify({ error: `Project '${toolArgs.projectName}' not found in memory.` });
     }
     
     if (toolName === "saveToMemory") {
@@ -63,21 +79,82 @@ function executeTool(toolName, toolArgs) {
             const memory = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8'));
             memory[toolArgs.topic] = toolArgs.information;
             fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
-            return JSON.stringify({ success: `Successfully memorized data under topic: ${toolArgs.topic}.` });
+            return JSON.stringify({ success: `Memorized under topic: ${toolArgs.topic}.` });
         } catch (error) {
             return JSON.stringify({ error: "Failed to write to memory disk." });
+        }
+    }
+
+    // --- 🗄️ THE LIVE DATABASE QUERY ENGINE ---
+    if (toolName === "querySupabaseDatabase") {
+        const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase() === toolArgs.projectName.toLowerCase());
+        if (!project) return JSON.stringify({ error: "Project not found in UI vault." });
+
+        let supaUrl = '';
+        let supaKey = '';
+        
+        // Magically find the Supabase keys in the chaotic vault
+        Object.values(project.tabs || {}).flat().forEach(v => {
+            const k = (v.key || '').toUpperCase();
+            const val = (v.value || '').trim();
+            if (val.includes('supabase.co')) supaUrl = val;
+            if ((k.includes('ANON') || k.includes('KEY') || k.includes('SERVICE')) && val.startsWith('eyJ')) supaKey = val;
+        });
+
+        if (!supaUrl || !supaKey) {
+            return JSON.stringify({ error: "Missing Supabase URL or Anon Key in the project's Rashboard vault." });
+        }
+
+        const baseUrl = supaUrl.replace(/\/$/, '') + '/rest/v1/' + toolArgs.tableName;
+        const limit = Math.min(toolArgs.limit || 5, 20); // Protect AI context window
+        
+        try {
+            const headers = {
+                'apikey': supaKey,
+                'Authorization': `Bearer ${supaKey}`,
+                'Content-Type': 'application/json'
+            };
+
+            let fetchUrl = baseUrl;
+
+            // Handle row counting efficiently via PostgREST headers
+            if (toolArgs.selectQuery === 'count') {
+                headers['Prefer'] = 'count=exact';
+                fetchUrl += '?select=*&limit=1'; 
+            } else {
+                fetchUrl += `?select=${toolArgs.selectQuery || '*'}&limit=${limit}`;
+            }
+
+            // Native Node Fetch
+            const dbRes = await fetch(fetchUrl, { headers });
+            
+            if (!dbRes.ok) {
+                const errText = await dbRes.text();
+                return JSON.stringify({ error: `Database rejection: ${dbRes.statusText}`, details: errText });
+            }
+
+            if (toolArgs.selectQuery === 'count') {
+                const range = dbRes.headers.get('content-range') || '0-0/0';
+                const totalCount = range.split('/')[1] || 0;
+                return JSON.stringify({ tableName: toolArgs.tableName, totalRowCount: parseInt(totalCount, 10) });
+            } else {
+                const data = await dbRes.json();
+                return JSON.stringify({ tableName: toolArgs.tableName, rowsReturned: data.length, data: data });
+            }
+        } catch (err) {
+            return JSON.stringify({ error: "Failed to establish network connection to Database." });
         }
     }
 
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
+// --- 🧠 THE MAIN EXECUTION LOOP ---
 async function runAgent(userPrompt) {
     let memoryContext = "{}";
     try { memoryContext = fs.readFileSync(MEMORY_FILE, 'utf8'); } catch(e){}
 
-    // Inject known projects directly into the prompt so the AI doesn't hallucinate tags
-    const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced from UI yet.";
+    const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
 
     const systemPrompt = `You are the central AI agent managing a developer's Rashboard.
     
@@ -89,8 +166,9 @@ async function runAgent(userPrompt) {
     RULES:
     1. To read project URLs or DB keys, use getProjectStatus.
     2. To save facts, use saveToMemory.
-    3. If the user asks about a project not in CURRENTLY SYNCED PROJECTS, tell them.
-    4. CRITICAL: Never output raw <function> tags in your text. Only use the native tool API.`;
+    3. To fetch live data or count rows from a project's database, use querySupabaseDatabase. 
+    4. If querying a database, neatly summarize the data. Do NOT dump raw JSON to the user.
+    5. CRITICAL: Never output raw <function> tags. Only use the native tool API.`;
 
     const messages = [
         { role: "system", content: systemPrompt },
@@ -111,7 +189,8 @@ async function runAgent(userPrompt) {
         if (toolCalls) {
             messages.push(responseMessage);
             for (const toolCall of toolCalls) {
-                const functionResponse = executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
+                // AWAIT added here for the network requests!
+                const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
                 messages.push({ tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse });
             }
 
