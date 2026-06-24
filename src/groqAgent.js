@@ -7,6 +7,10 @@ const Groq = require('groq-sdk');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
 
+// --- SHORT-TERM RAM ---
+// This stores the chat history so the AI understands follow-up answers like "Yes"
+global.agentHistory = global.agentHistory || [];
+
 // --- RAG: Initialize Permanent Memory ---
 if (!fs.existsSync(MEMORY_FILE)) {
     fs.writeFileSync(MEMORY_FILE, JSON.stringify({
@@ -34,12 +38,13 @@ const tools = [
         type: "function",
         function: {
             name: "saveToMemory",
-            description: "Save an important fact, idea, or preference into long-term permanent memory.",
+            // Added strict guardrails so it doesn't hallucinate this tool
+            description: "Use ONLY when the user EXPLICITLY commands you to 'remember', 'save', or 'memorize' something.",
             parameters: {
                 type: "object",
                 properties: {
-                    topic: { type: "string", description: "A short 1-3 word key (e.g., 'User Name', 'App Idea')" },
-                    information: { type: "string", description: "The detailed information to remember permanently." }
+                    topic: { type: "string", description: "A short 1-3 word key." },
+                    information: { type: "string", description: "The detailed info to save." }
                 },
                 required: ["topic", "information"]
             }
@@ -49,12 +54,12 @@ const tools = [
         type: "function",
         function: {
             name: "querySupabaseDatabase",
-            description: "Fetch live production data directly from a project's Supabase database. Use this to count rows or check recent records.",
+            description: "Fetch live data from Supabase. Use this to count rows, query tables, or when the user confirms a table name.",
             parameters: {
                 type: "object",
                 properties: {
                     projectName: { type: "string", description: "The exact name of the project." },
-                    tableName: { type: "string", description: "The exact name of the database table (e.g., 'pros', 'users', 'profiles')." },
+                    tableName: { type: "string", description: "The exact name of the database table." },
                     selectQuery: { type: "string", description: "Set to 'count' to get the total row count, or '*' to get actual row data." },
                     limit: { type: "number", description: "Max rows to fetch if pulling data. Default is 5. Max 20." }
                 },
@@ -79,7 +84,6 @@ async function executeTool(toolName, toolArgs) {
         }
     }
 
-    // Failsafe: Remove spaces and make lowercase so "Service Linkup" matches "ServiceLinkup"
     const targetName = (toolArgs.projectName || '').toLowerCase().replace(/\s+/g, '');
     const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase().replace(/\s+/g, '') === targetName);
     
@@ -134,26 +138,23 @@ async function executeTool(toolName, toolArgs) {
 
             const dbRes = await fetch(fetchUrl, { headers });
             
-            // 🚨 THE AUTO-HEALING LOGIC 🚨
+            // Auto-Healing Logic
             if (!dbRes.ok) {
                 let availableTables = [];
                 try {
-                    // If table fails, instantly fetch the real database schema
                     const schemaRes = await fetch(cleanSupaUrl + '/rest/v1/', { headers });
                     if (schemaRes.ok) {
                         const schemaData = await schemaRes.json();
-                        // Strip out endpoints to just get clean table names
                         availableTables = Object.keys(schemaData.paths || {})
                             .map(p => p.replace('/', '').split('?')[0])
                             .filter(n => n && n !== 'rpc' && n !== 'introspection');
                     }
                 } catch(e) {}
 
-                // Send the actual tables back to the AI and command it to ask the user
                 return JSON.stringify({ 
-                    error: `The table '${toolArgs.tableName}' does not exist or access was denied.`,
+                    error: `The table '${toolArgs.tableName}' does not exist.`,
                     actualTablesInDatabase: availableTables.length > 0 ? availableTables : "Could not fetch table list.",
-                    instruction: "Politely tell the user the table wasn't found, list 2-3 of the most likely matching tables from 'actualTablesInDatabase', and ask them to confirm which one they meant."
+                    instruction: "Tell the user the table wasn't found, list the 'actualTablesInDatabase', and ask them to confirm which one they meant."
                 });
             }
 
@@ -183,17 +184,17 @@ async function runAgent(userPrompt) {
     const systemPrompt = `You are the central AI agent managing a developer's Rashboard.
     
     CURRENTLY SYNCED PROJECTS: [${knownProjects}]
-    
-    PERMANENT MEMORY BANKS:
-    ${memoryContext}
+    PERMANENT MEMORY BANKS: ${memoryContext}
     
     RULES:
-    1. To fetch live data or count rows from a project's database, use querySupabaseDatabase.
-    2. If a tool returns an error saying a table wasn't found but provides a list of 'actualTablesInDatabase', DO NOT SAY 'System Failure'. Instead, naturally ask the user: "I couldn't find the [X] table, but I do see [Y] and [Z]. Did you mean one of those?"
+    1. To fetch live data or count rows, use 'querySupabaseDatabase'.
+    2. If you asked the user to clarify a table name and they say "Yes" or provide the name, IMMEDIATELY use 'querySupabaseDatabase' with the corrected table name.
     3. Neatly summarize database data. Do NOT dump raw JSON to the user.`;
 
+    // Inject the Chat History so the AI remembers the conversation
     const messages = [
         { role: "system", content: systemPrompt },
+        ...global.agentHistory,
         { role: "user", content: userPrompt }
     ];
 
@@ -205,7 +206,8 @@ async function runAgent(userPrompt) {
             tool_choice: "auto"
         });
 
-        const responseMessage = response.choices[0].message;
+        let responseMessage = response.choices[0].message;
+        let finalOutput = responseMessage.content;
         
         if (responseMessage.tool_calls) {
             messages.push(responseMessage);
@@ -218,10 +220,20 @@ async function runAgent(userPrompt) {
                 model: "llama-3.3-70b-versatile",
                 messages: messages
             });
-            return finalResponse.choices[0].message.content;
+            responseMessage = finalResponse.choices[0].message;
+            finalOutput = responseMessage.content;
         }
 
-        return responseMessage.content;
+        // Save the interaction to short-term memory
+        global.agentHistory.push({ role: "user", content: userPrompt });
+        global.agentHistory.push({ role: "assistant", content: finalOutput || "Tool executed." });
+
+        // Keep memory lean (last 6 messages / 3 interactions) to save context tokens
+        if (global.agentHistory.length > 6) {
+            global.agentHistory = global.agentHistory.slice(global.agentHistory.length - 6);
+        }
+
+        return finalOutput;
     } catch (error) {
         console.error("[AGENT ERROR]", error);
         return "System failure: Agent could not process the request.";
