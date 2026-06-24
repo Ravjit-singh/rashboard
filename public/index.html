@@ -202,7 +202,6 @@
     </main>
 
     <!-- 🤖 COMMAND CENTER VIEW -->
-    <!-- h-[100dvh] solves the Android chrome bar height issue perfectly -->
     <main id="view-agent" class="hidden flex-1 flex-col h-[100dvh] overflow-hidden relative z-10 bg-base">
         <!-- Header -->
         <header class="bg-surface/80 backdrop-blur-xl border-b border-borderline/5 px-6 md:px-10 py-4 md:py-6 shrink-0 z-20 shadow-sm flex justify-between items-center">
@@ -427,21 +426,24 @@
             }, 1400); 
         };
 
-        // --- DYNAMIC SYNC BRIDGE ---
-        async function syncArchitecture() {
+        // --- DYNAMIC BACKGROUND SYNC ---
+        async function syncToBackend() {
             try {
-                await fetch('/api/sync', {
+                await fetch('http://localhost:3000/api/sync', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ projects: projects })
+                    body: JSON.stringify({ 
+                        projects: JSON.parse(localStorage.getItem('rashboard_v13') || '[]') 
+                    })
                 });
                 console.log("Vault synced with Backend Agent");
-            } catch (e) {
+            } catch(e) {
                 console.error("Failed to sync with backend", e);
             }
         }
 
         function init() {
+            // Data Migration for the new ghPages field
             if (projects.length === 0 && localStorage.getItem('rashboard_v12')) {
                 projects = JSON.parse(localStorage.getItem('rashboard_v12'));
                 localStorage.setItem('rashboard_v13', JSON.stringify(projects));
@@ -452,7 +454,10 @@
             setupKeyboardShortcuts();
             renderProjects();
             pingAll();
-            syncArchitecture(); // Sync to agent backend on load
+            
+            // Sync to backend immediately on boot, and then every 10 seconds
+            syncToBackend();
+            setInterval(syncToBackend, 10000);
             setInterval(pingAll, 30000);
         }
 
@@ -793,7 +798,7 @@
                     const eq = line.indexOf('='); if(eq === -1) return null;
                     const key = line.substring(0, eq).trim(), value = line.substring(eq + 1).trim().replace(/^["']|["']$/g, '');
                     let tab = 'General'; const k = key.toUpperCase();
-                    if (k.includes('DB') || k.includes('DATABASE') || k.includes('POSTGRES') || k.includes('SUPABASE')) tab = 'Database';
+                    if (k.includes('DB') || k.includes('DATABASE') || k.includes('POSTGRES')) tab = 'Database';
                     else if (k.includes('AWS') || k.includes('S3') || k.includes('BUCKET')) tab = 'Storage';
                     else if (k.includes('API') || k.includes('SECRET') || k.includes('CLERK') || k.includes('STRIPE')) tab = 'Backend';
                     else if (k.includes('NEXT_PUBLIC') || k.includes('VITE') || k.includes('REACT')) tab = 'Frontend';
@@ -860,14 +865,14 @@
             }
 
             localStorage.setItem('rashboard_v13', JSON.stringify(projects)); saveStateMeta(); renderProjects(); pingAll(); 
-            syncArchitecture(); // TRIGGER BACKEND SYNC HERE
+            syncToBackend(); // Force sync on save
             closeCreator(); showToast("System synchronized", "success");
         }
 
         function deleteProject(id) { 
             if(confirm("Confirm destructive action: Delete environment?")) { 
                 projects = projects.filter(p => p.id !== id); delete activeTabs[id]; expandedCards.delete(id);
-                localStorage.setItem('rashboard_v13', JSON.stringify(projects)); saveStateMeta(); renderProjects(); syncArchitecture();
+                localStorage.setItem('rashboard_v13', JSON.stringify(projects)); saveStateMeta(); renderProjects(); syncToBackend();
             } 
         }
 
@@ -888,7 +893,7 @@
                     if (Array.isArray(imp)) {
                         projects = imp; localStorage.setItem('rashboard_v13', JSON.stringify(projects));
                         projects.forEach(p => { const k = Object.keys(p.tabs || {}); if(k.length) activeTabs[p.id] = k[0]; }); saveStateMeta();
-                        switchView('workspace'); renderProjects(); pingAll(); syncArchitecture(); showToast("System restored", "success");
+                        switchView('workspace'); renderProjects(); pingAll(); syncToBackend(); showToast("System restored", "success");
                     } else throw new Error("Format");
                 } catch(err) { showToast("Failed reading payload", "error"); }
             }; r.readAsText(f); e.target.value = "";
@@ -896,7 +901,7 @@
 
         function clearAllData() {
             if(confirm("CRITICAL WARNING: Wipe all local Rashboard data? Cannot be undone.")) {
-                projects = []; localStorage.removeItem('rashboard_v13'); renderProjects(); syncArchitecture(); showToast("System wiped", "success");
+                projects = []; localStorage.removeItem('rashboard_v13'); renderProjects(); syncToBackend(); showToast("System wiped", "success");
             }
         }
 
@@ -1053,29 +1058,6 @@
                 if (window.innerWidth > 768 && !isListening) messageInput.focus();
             }
         });
-        // --- DYNAMIC BACKGROUND SYNC ---
-async function syncToBackend() {
-    try {
-        await fetch('http://localhost:3000/api/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                // Grabs your projects right out of your local storage
-                projects: JSON.parse(localStorage.getItem('rashboard_v13') || '[]') 
-            })
-        });
-    } catch(e) {}
-}
-// Syncs when you load the page, and every 10 seconds automatically
-syncToBackend();
-setInterval(syncToBackend, 10000);
-
-### Try it out!
-1. Restart your Termux server (`node src/server.js`).
-2. Refresh your browser at `localhost:3000`. You will see `[SYNC] Architecture updated` pop up in Termux!
-3. Ask the AI: *"Remember that my favorite framework is React."* The AI will use `saveToMemory` and write it to `memory.json`.
-4. Ask it about `Youhost`—if `Youhost` is in your UI, it will read its DB keys automatically. If it isn't, the AI will now politely tell you to map it instead of crashing!
-
     </script>
 </body>
 </html>
