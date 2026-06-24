@@ -3,7 +3,8 @@
   "Rashboard Purpose": "A local dashboard app to keep records of project's API, password, and other sensitive information in one place.",
   "YourHost Install": "curl command for installation",
   "YourHost Install Command": "The installation command for YourHost is: curl -sL https://raw.githubusercontent.com/Ravjit-singh/yourhost/main/install.sh | bash",
-  "YourHost Overview": "YourHost is a self-hosting platform that caters to Minecraft server hosting needs, allowing users to manage their servers and hosting services with a simple and intuitive interface.",
+  "YourHost Overview": "YourHost is a self-hosting platform for Minecraft server hosting needs, allowing users to manage their servers and hosting services with a simple and intuitive interface.",
   "YourHost Purpose": "YourHost aims to provide a user-friendly platform for managing Minecraft server hosting, making it easier for users to handle their hosting needs.",
-  "Introduction": "The user has acknowledged the rules and project information for the Rashboard AI Core."
+  "Introduction": "The user has acknowledged the rules and project information for the Rashboard AI Core.",
+  "Rashboard Overview": "Rashboard is a local dashboard application designed to keep records of a project's API, password, and other sensitive information in one place. It aims to provide a centralized platform for managing and accessing project details."
 }

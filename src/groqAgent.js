@@ -54,7 +54,7 @@ const tools = [
                 type: "object",
                 properties: {
                     projectName: { type: "string", description: "The exact name of the project." },
-                    tableName: { type: "string", description: "The exact name of the database table (e.g., 'pros')." },
+                    tableName: { type: "string", description: "The exact name of the database table (e.g., 'pros', 'users', 'profiles')." },
                     selectQuery: { type: "string", description: "Set to 'count' to get the total row count, or '*' to get actual row data." },
                     limit: { type: "number", description: "Max rows to fetch if pulling data. Default is 5. Max 20." }
                 },
@@ -134,9 +134,27 @@ async function executeTool(toolName, toolArgs) {
 
             const dbRes = await fetch(fetchUrl, { headers });
             
+            // 🚨 THE AUTO-HEALING LOGIC 🚨
             if (!dbRes.ok) {
-                const errText = await dbRes.text();
-                return JSON.stringify({ error: `Database rejection: ${dbRes.statusText}`, details: errText });
+                let availableTables = [];
+                try {
+                    // If table fails, instantly fetch the real database schema
+                    const schemaRes = await fetch(cleanSupaUrl + '/rest/v1/', { headers });
+                    if (schemaRes.ok) {
+                        const schemaData = await schemaRes.json();
+                        // Strip out endpoints to just get clean table names
+                        availableTables = Object.keys(schemaData.paths || {})
+                            .map(p => p.replace('/', '').split('?')[0])
+                            .filter(n => n && n !== 'rpc' && n !== 'introspection');
+                    }
+                } catch(e) {}
+
+                // Send the actual tables back to the AI and command it to ask the user
+                return JSON.stringify({ 
+                    error: `The table '${toolArgs.tableName}' does not exist or access was denied.`,
+                    actualTablesInDatabase: availableTables.length > 0 ? availableTables : "Could not fetch table list.",
+                    instruction: "Politely tell the user the table wasn't found, list 2-3 of the most likely matching tables from 'actualTablesInDatabase', and ask them to confirm which one they meant."
+                });
             }
 
             if (toolArgs.selectQuery === 'count') {
@@ -170,8 +188,9 @@ async function runAgent(userPrompt) {
     ${memoryContext}
     
     RULES:
-    1. To fetch live data or count rows from a project's database, ALWAYS call the querySupabaseDatabase tool.
-    2. When returning database results to the user, neatly summarize the data. Do NOT dump raw JSON to the user.`;
+    1. To fetch live data or count rows from a project's database, use querySupabaseDatabase.
+    2. If a tool returns an error saying a table wasn't found but provides a list of 'actualTablesInDatabase', DO NOT SAY 'System Failure'. Instead, naturally ask the user: "I couldn't find the [X] table, but I do see [Y] and [Z]. Did you mean one of those?"
+    3. Neatly summarize database data. Do NOT dump raw JSON to the user.`;
 
     const messages = [
         { role: "system", content: systemPrompt },
