@@ -1,3 +1,6 @@
 {
-  "system": "Rashboard AI Core initialized. Memory banks empty."
+  "system": "Rashboard AI Core initialized. Memory banks empty.",
+  "Rashboard Purpose": "A local dashboard app to keep records of project's API, password, and other sensitive information in one place.",
+  "YourHost Install": "curl command for installation",
+  "YourHost Install Command": "curl -sL https://raw.githubusercontent.com/Ravjit-singh/yourhost/main/install.sh | bash"
 }
