@@ -1053,6 +1053,29 @@
                 if (window.innerWidth > 768 && !isListening) messageInput.focus();
             }
         });
+        // --- DYNAMIC BACKGROUND SYNC ---
+async function syncToBackend() {
+    try {
+        await fetch('http://localhost:3000/api/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                // Grabs your projects right out of your local storage
+                projects: JSON.parse(localStorage.getItem('rashboard_v13') || '[]') 
+            })
+        });
+    } catch(e) {}
+}
+// Syncs when you load the page, and every 10 seconds automatically
+syncToBackend();
+setInterval(syncToBackend, 10000);
+
+### Try it out!
+1. Restart your Termux server (`node src/server.js`).
+2. Refresh your browser at `localhost:3000`. You will see `[SYNC] Architecture updated` pop up in Termux!
+3. Ask the AI: *"Remember that my favorite framework is React."* The AI will use `saveToMemory` and write it to `memory.json`.
+4. Ask it about `Youhost`—if `Youhost` is in your UI, it will read its DB keys automatically. If it isn't, the AI will now politely tell you to map it instead of crashing!
+
     </script>
 </body>
 </html>
