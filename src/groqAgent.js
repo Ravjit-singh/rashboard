@@ -3,18 +3,15 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const Groq = require('groq-sdk');
+const { getHistory, addMessage } = require('./contextWindow'); // <-- IMPORTING YOUR NEW MODULE
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
 
-// --- SHORT-TERM RAM ---
-// This stores the chat history so the AI understands follow-up answers like "Yes"
-global.agentHistory = global.agentHistory || [];
-
 // --- RAG: Initialize Permanent Memory ---
 if (!fs.existsSync(MEMORY_FILE)) {
     fs.writeFileSync(MEMORY_FILE, JSON.stringify({
-        system: "Rashboard AI Core initialized. Memory banks empty."
+        system: "Rashboard AI Core initialized."
     }, null, 2));
 }
 
@@ -38,7 +35,6 @@ const tools = [
         type: "function",
         function: {
             name: "saveToMemory",
-            // Added strict guardrails so it doesn't hallucinate this tool
             description: "Use ONLY when the user EXPLICITLY commands you to 'remember', 'save', or 'memorize' something.",
             parameters: {
                 type: "object",
@@ -60,8 +56,8 @@ const tools = [
                 properties: {
                     projectName: { type: "string", description: "The exact name of the project." },
                     tableName: { type: "string", description: "The exact name of the database table." },
-                    selectQuery: { type: "string", description: "Set to 'count' to get the total row count, or '*' to get actual row data." },
-                    limit: { type: "number", description: "Max rows to fetch if pulling data. Default is 5. Max 20." }
+                    selectQuery: { type: "string", description: "Set to 'count' to get total rows, or '*' to get row data." },
+                    limit: { type: "number", description: "Max rows to fetch. Default is 5." }
                 },
                 required: ["projectName", "tableName"]
             }
@@ -93,15 +89,10 @@ async function executeTool(toolName, toolArgs) {
         return JSON.stringify({ name: project.name, liveUrl: project.liveUrl, vaultKeys: project.tabs || {}, status: "Found" });
     }
 
-    // --- 🗄️ THE LIVE DATABASE QUERY ENGINE ---
     if (toolName === "querySupabaseDatabase") {
-        let supaUrl = '';
-        let anonKey = '';
-        let serviceKey = '';
-        
+        let supaUrl = ''; let anonKey = ''; let serviceKey = '';
         Object.values(project.tabs || {}).flat().forEach(v => {
-            const k = (v.key || '').toUpperCase();
-            const val = (v.value || '').trim();
+            const k = (v.key || '').toUpperCase(); const val = (v.value || '').trim();
             if (val.includes('supabase.co')) supaUrl = val;
             if (val.startsWith('eyJ')) {
                 if (k.includes('SERVICE') || k.includes('ROLE')) serviceKey = val;
@@ -111,27 +102,18 @@ async function executeTool(toolName, toolArgs) {
         });
 
         const activeKey = serviceKey || anonKey;
-
-        if (!supaUrl || !activeKey) {
-            return JSON.stringify({ error: "Missing Supabase URL or Key in the project's Rashboard vault." });
-        }
+        if (!supaUrl || !activeKey) return JSON.stringify({ error: "Missing Supabase URL or Key in the project's Rashboard vault." });
 
         const cleanSupaUrl = supaUrl.split('/rest/v1')[0].replace(/\/$/, '');
         const baseUrl = cleanSupaUrl + '/rest/v1/' + toolArgs.tableName;
         const limit = Math.min(toolArgs.limit || 5, 20);
         
         try {
-            const headers = {
-                'apikey': activeKey,
-                'Authorization': `Bearer ${activeKey}`,
-                'Content-Type': 'application/json'
-            };
-
+            const headers = { 'apikey': activeKey, 'Authorization': `Bearer ${activeKey}`, 'Content-Type': 'application/json' };
             let fetchUrl = baseUrl;
 
             if (toolArgs.selectQuery === 'count') {
-                headers['Prefer'] = 'count=exact';
-                fetchUrl += '?select=*&limit=1'; 
+                headers['Prefer'] = 'count=exact'; fetchUrl += '?select=*&limit=1'; 
             } else {
                 fetchUrl += `?select=${toolArgs.selectQuery || '*'}&limit=${limit}`;
             }
@@ -160,8 +142,7 @@ async function executeTool(toolName, toolArgs) {
 
             if (toolArgs.selectQuery === 'count') {
                 const range = dbRes.headers.get('content-range') || '0-0/0';
-                const totalCount = range.split('/')[1] || 0;
-                return JSON.stringify({ tableName: toolArgs.tableName, totalRowCount: parseInt(totalCount, 10) });
+                return JSON.stringify({ tableName: toolArgs.tableName, totalRowCount: parseInt(range.split('/')[1] || 0, 10) });
             } else {
                 const data = await dbRes.json();
                 return JSON.stringify({ tableName: toolArgs.tableName, rowsReturned: data.length, data: data });
@@ -170,7 +151,6 @@ async function executeTool(toolName, toolArgs) {
             return JSON.stringify({ error: "Failed to establish network connection to Database." });
         }
     }
-
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
@@ -191,11 +171,13 @@ async function runAgent(userPrompt) {
     2. If you asked the user to clarify a table name and they say "Yes" or provide the name, IMMEDIATELY use 'querySupabaseDatabase' with the corrected table name.
     3. Neatly summarize database data. Do NOT dump raw JSON to the user.`;
 
-    // Inject the Chat History so the AI remembers the conversation
+    // 1. ADD USER MESSAGE TO CONTEXT WINDOW
+    addMessage({ role: "user", content: userPrompt });
+
+    // 2. BUILD API MESSAGES (System Prompt + Full Context Window)
     const messages = [
         { role: "system", content: systemPrompt },
-        ...global.agentHistory,
-        { role: "user", content: userPrompt }
+        ...getHistory()
     ];
 
     try {
@@ -207,33 +189,38 @@ async function runAgent(userPrompt) {
         });
 
         let responseMessage = response.choices[0].message;
-        let finalOutput = responseMessage.content;
         
+        // If the AI decides to use a tool
         if (responseMessage.tool_calls) {
+            // Record the AI's tool decision in the context window
+            addMessage(responseMessage);
             messages.push(responseMessage);
+
             for (const toolCall of responseMessage.tool_calls) {
                 const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
-                messages.push({ tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse });
+                
+                const toolMessage = { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse };
+                // Record the Tool's output in the context window
+                addMessage(toolMessage);
+                messages.push(toolMessage);
             }
 
+            // Ask the AI to read the tool output and generate a final human answer
             const finalResponse = await groq.chat.completions.create({
                 model: "llama-3.3-70b-versatile",
                 messages: messages
             });
-            responseMessage = finalResponse.choices[0].message;
-            finalOutput = responseMessage.content;
+            
+            const finalMessage = finalResponse.choices[0].message;
+            // Record final human answer in the context window
+            addMessage(finalMessage);
+            return finalMessage.content;
         }
 
-        // Save the interaction to short-term memory
-        global.agentHistory.push({ role: "user", content: userPrompt });
-        global.agentHistory.push({ role: "assistant", content: finalOutput || "Tool executed." });
+        // If no tool was used, just record the normal text response
+        addMessage(responseMessage);
+        return responseMessage.content;
 
-        // Keep memory lean (last 6 messages / 3 interactions) to save context tokens
-        if (global.agentHistory.length > 6) {
-            global.agentHistory = global.agentHistory.slice(global.agentHistory.length - 6);
-        }
-
-        return finalOutput;
     } catch (error) {
         console.error("[AGENT ERROR]", error);
         return "System failure: Agent could not process the request.";
