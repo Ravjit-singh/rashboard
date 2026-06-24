@@ -1,80 +1,64 @@
 [
   {
     "role": "user",
-    "content": "hey tell me about the"
-  },
-  {
-    "role": "assistant",
-    "content": "I am not equipped to provide information about your query as it is not specific enough. Can you provide more details or clarify what you are looking for?"
-  },
-  {
-    "role": "user",
-    "content": "tell me about the list of professionals in service link up"
-  },
-  {
-    "role": "user",
-    "content": "Which people are professionals in service linkup ?"
+    "content": "List files in devstore"
   },
   {
     "role": "assistant",
     "tool_calls": [
       {
-        "id": "bbm5vrcee",
+        "id": "e4ma3v7nn",
         "type": "function",
         "function": {
           "name": "querySupabaseDatabase",
-          "arguments": "{\"projectName\":\"Service Linkup\",\"selectQuery\":\"*\",\"tableName\":\"professionals\"}"
+          "arguments": "{\"projectName\":\"Devstore\",\"selectQuery\":\"*\",\"tableName\":\"files\"}"
         }
       }
     ]
   },
   {
-    "tool_call_id": "bbm5vrcee",
+    "tool_call_id": "e4ma3v7nn",
     "role": "tool",
     "name": "querySupabaseDatabase",
-    "content": "{\"tableName\":\"professionals\",\"rowsReturned\":3,\"data\":[{\"id\":\"c3c4b816-94b1-4542-87e4-5e6261c52579\",\"full_name\":\"Ravjit Singh\",\"email\":\"ravjitsingh4444@gmail.com\",\"phone\":\"7087566133\",\"trade\":\"Developer\",\"city\":\"Chandigarh\",\"area_covered\":null,\"bio\":\"I am Ravjit Singh a full stack developer to bring your ideas into reality \\n\\nCheck my work\\nravjitsingh.ct.ws\",\"avatar_url\":\"https://drive.google.com/uc?export=view&id=1nAyAKJPoetIxJ2Qd8IghoFtAcUk40rSx\",\"experience_years\":4,\"base_price\":\"Contact for price\",\"rating\":0,\"is_verified\":true,\"created_at\":\"2026-04-27T17:04:30.14918+00:00\",\"password\":\"r@Vi4444#\",\"contact_clicks\":18,\"portfolio_urls\":[\"https://drive.google.com/uc?export=view&id=12QX2HqqKy6-rhEJn1LZ2QgEndkvVbMeo\",\"https://drive.google.com/uc?export=view&id=11Vr_Eh1eiJYFuS1SwbTxeF4ZhL99nH_r\"],\"report_reason\":null,\"is_banned\":false},{\"id\":\"8192d78a-4f7b-4f1c-b97e-0f746f3acdf9\",\"full_name\":\"Aditya Kumar\",\"email\":\"adityasharma90411@gmail.com\",\"phone\":\"7710149081\",\"trade\":\"Developer\",\"city\":\"Chandigarh\",\"area_covered\":null,\"bio\":\"I am Aditya Kumar a full stack developer to bring your ideas into reality\\n\\nCheck my work\",\"avatar_url\":\"https://drive.google.com/uc?export=view&id=1U-FOGoPX2F_86udQOXtTNIfCyOfHnagf\",\"experience_years\":4,\"base_price\":\"Contact for price\",\"rating\":0,\"is_verified\":true,\"created_at\":\"2026-04-28T08:24:25.487216+00:00\",\"password\":\"adidalla\",\"contact_clicks\":10,\"portfolio_urls\":[],\"report_reason\":null,\"is_banned\":false},{\"id\":\"fed0f564-d982-49f2-87bd-fb7497c46d0f\",\"full_name\":\"Vipin kumar \",\"email\":\"vk957657@gmail.com\",\"phone\":\"9996628958\",\"trade\":\"Video editing and script writing \",\"city\":\"Panchkula\",\"area_covered\":null,\"bio\":\"\",\"avatar_url\":null,\"experience_years\":1,\"base_price\":\"Contact for price\",\"rating\":0,\"is_verified\":true,\"created_at\":\"2026-05-07T11:28:07.9695+00:00\",\"password\":\"Vipin@2007\",\"contact_clicks\":2,\"portfolio_urls\":[],\"report_reason\":null,\"is_banned\":false}]}"
+    "content": "{\"error\":\"The table 'files' does not exist.\",\"actualTablesInDatabase\":\"Could not fetch table list.\",\"instruction\":\"Tell the user the table wasn't found, list the 'actualTablesInDatabase', and ask them to confirm which one they meant.\"}"
   },
   {
     "role": "assistant",
-    "content": "There are 3 professionals in Service Linkup. Here's a summarized list of them:\n\n1. Ravjit Singh - Developer from Chandigarh with 4 years of experience.\n2. Aditya Kumar - Developer from Chandigarh with 4 years of experience.\n3. Vipin Kumar - Video editing and script writing professional from Panchkula with 1 year of experience.\n\nLet me know if you'd like to know more about any of these professionals!"
+    "content": "The table 'files' does not exist in the Devstore database. The actual tables in the database are: Could not fetch table list. It seems like the table list cannot be fetched. Can you please confirm the correct table name for the files in Devstore?"
   },
   {
     "role": "user",
-    "content": "Ravjit Singh is the one who made rashboard and all these projects"
+    "content": "From files I mean assets table"
   },
   {
     "role": "assistant",
     "tool_calls": [
       {
-        "id": "n1dhpgkvq",
+        "id": "7q3g8yv0w",
         "type": "function",
         "function": {
-          "name": "saveToMemory",
-          "arguments": "{\"information\":\"Ravjit Singh is the creator of Rashboard and other projects such as Service Linkup, YourHost, and Devstore.\",\"topic\":\"Ravjit Singh\"}"
+          "name": "querySupabaseDatabase",
+          "arguments": "{\"projectName\":\"Devstore\",\"selectQuery\":\"*\",\"tableName\":\"assets\"}"
         }
       }
     ]
   },
   {
-    "tool_call_id": "n1dhpgkvq",
+    "tool_call_id": "7q3g8yv0w",
     "role": "tool",
-    "name": "saveToMemory",
-    "content": "{\"success\":\"Memorized under topic: Ravjit Singh.\"}"
+    "name": "querySupabaseDatabase",
+    "content": "{\"tableName\":\"assets\",\"rowsReturned\":5,\"data\":[{\"id\":\"27fb8777-4dbc-4147-89c2-4ff4fd17df5f\",\"file_name\":\"devstore.html\",\"drive_file_id\":\"1ouw57yM8vODOu9fAgOPJn7zD8KRo1mte\",\"tags\":[\"Web Dev\",\"Codepen\",\"devstore app frontend files \"],\"created_at\":\"2026-04-20T11:23:54.809026+00:00\",\"file_size\":38311},{\"id\":\"28cc0b13-683d-45a0-8569-c7b6f7c98e17\",\"file_name\":\"rmusic.html\",\"drive_file_id\":\"1z2k431rox52z6f9w__GPQ5jtsk5APefH\",\"tags\":[\"Web Dev\",\"Codepen\",\"Standalone file for rmusic \"],\"created_at\":\"2026-04-20T11:24:51.954806+00:00\",\"file_size\":37120},{\"id\":\"22827ef5-0bc4-4ebd-8fac-0d96e20d8f01\",\"file_name\":\"skillmax_mk2.html\",\"drive_file_id\":\"12yPiTc8S6Iu-VMMb2X4rHTk8NZ1cC8Ms\",\"tags\":[\"App Dev\",\"Codepen\",\"Skillmax standalone file \"],\"created_at\":\"2026-04-20T11:25:41.555121+00:00\",\"file_size\":38149},{\"id\":\"79c0a380-b969-437d-a1a1-b5e1f71ffbdd\",\"file_name\":\"rassistantui.html\",\"drive_file_id\":\"1ZiT8J01QqisbYoKVX7wa4Xxtv7MR67-T\",\"tags\":[\"App Dev\",\"Codepen\",\"Frontend for custom ai language modell in dark theme\"],\"created_at\":\"2026-04-20T11:26:29.762108+00:00\",\"file_size\":19204},{\"id\":\"79db9a40-fee2-4ffd-8a26-7a92a2488796\",\"file_name\":\"DevStore Feature Roadmap.docx\",\"drive_file_id\":\"1AriEo110b8dc3nXPtDR7Tjgk7rpViVUo\",\"tags\":[\"App Dev\",\"Logic\",\"Full roadmap to build devstore\"],\"created_at\":\"2026-04-21T17:11:05.469026+00:00\",\"file_size\":8584}]}"
   },
   {
     "role": "assistant",
-    "content": "I've taken note that Ravjit Singh is the creator of Rashboard and other projects such as Service Linkup, YourHost, and Devstore. This information will be stored in my memory for future reference."
+    "content": "Here is a summary of the assets in the Devstore database:\n\n1. devstore.html - a web development file with a size of 38.31 KB, tagged as \"Web Dev\", \"Codepen\", and \"devstore app frontend files\".\n2. rmusic.html - a web development file with a size of 37.12 KB, tagged as \"Web Dev\", \"Codepen\", and \"Standalone file for rmusic\".\n3. skillmax_mk2.html - an app development file with a size of 38.15 KB, tagged as \"App Dev\", \"Codepen\", and \"Skillmax standalone file\".\n4. rassistantui.html - an app development file with a size of 19.2 KB, tagged as \"App Dev\", \"Codepen\", and \"Frontend for custom ai language model in dark theme\".\n5. DevStore Feature Roadmap.docx - a document file with a size of 8.58 KB, tagged as \"App Dev\", \"Logic\", and \"Full roadmap to build devstore\".\n\nThese assets were created on various dates between April 20-21, 2026."
   },
   {
     "role": "user",
-    "content": "Who is the creator of rashboard"
+    "content": "Provide the name of the files only"
   },
   {
     "role": "assistant",
-    "content": "The creator of Rashboard is Ravjit Singh."
-  },
-  {
-    "role": "user",
-    "content": "Tell me about devstore"
+    "content": "Here are the names of the files in the Devstore database:\n\n1. devstore.html\n2. rmusic.html\n3. skillmax_mk2.html\n4. rassistantui.html\n5. DevStore Feature Roadmap.docx"
   }
 ]

@@ -1,12 +1,23 @@
 // public/script.js
 
-// --- Core Engine & Type-Safe State ---
-let projects = JSON.parse(localStorage.getItem('rashboard_v13')) || [];
+// --- 🧠 CORE STATE & CACHE ---
+let projects = [];
+try { projects = JSON.parse(localStorage.getItem('rashboard_v13')) || []; } catch(e) {}
+if (!Array.isArray(projects)) projects = [];
+
 let tempParsedVars = []; 
 let editingProjectId = null;
-let activeTabs = JSON.parse(localStorage.getItem('rashboard_tabs')) || {}; 
-let expandedCards = new Set(JSON.parse(localStorage.getItem('rashboard_expanded') || '[]'));
+
+let activeTabs = {};
+try { activeTabs = JSON.parse(localStorage.getItem('rashboard_tabs')) || {}; } catch(e) {}
+
+let expandedCards = new Set();
+try { expandedCards = new Set(JSON.parse(localStorage.getItem('rashboard_expanded') || '[]')); } catch(e) {}
+
 let searchTerm = '';
+let voiceResponseEnabled = false;
+let recognition = null;
+let isListening = false;
 
 const DEFAULT_CATEGORIES = ['General', 'Database', 'Backend', 'Storage', 'AppScript', 'Frontend', 'Auth'];
 
@@ -19,33 +30,41 @@ const SERVICES = [
     { name: 'Vercel', regex: /\.vercel\.app/i, getUrl: () => `https://vercel.com/dashboard`, color: 'text-accent bg-elevated border-borderline/20' }
 ];
 
-// --- THE BOOT SEQUENCE ---
-window.onload = () => {
-    init();
-    switchView('workspace');
-    
-    setTimeout(() => {
-        const splash = document.getElementById('splash-screen');
-        if(splash) {
-            splash.style.opacity = '0';
-            splash.style.pointerEvents = 'none';
-            setTimeout(() => splash.style.display = 'none', 700);
-        }
-    }, 1400); 
-};
+// --- 🚀 THE UNBREAKABLE BOOT SEQUENCE ---
+function forceRemoveSplash() {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        splash.style.opacity = '0';
+        splash.style.pointerEvents = 'none';
+        setTimeout(() => splash.style.display = 'none', 700);
+    }
+}
+setTimeout(forceRemoveSplash, 1500);
 
-// --- DYNAMIC BACKGROUND SYNC ---
+document.addEventListener("DOMContentLoaded", () => {
+    try {
+        init();
+        switchView('workspace');
+        setupEventListeners(); // Safely binds all AI and UI buttons
+        setTimeout(forceRemoveSplash, 300);
+    } catch (error) {
+        console.error("[SYSTEM FATAL] Boot sequence crashed:", error);
+        forceRemoveSplash();
+    }
+});
+
+// --- 🔄 BACKGROUND SYNC ---
 async function syncToBackend() {
     try {
         await fetch('/api/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projects: JSON.parse(localStorage.getItem('rashboard_v13') || '[]') })
+            body: JSON.stringify({ projects: projects })
         });
     } catch(e) { console.error("Failed to sync with backend", e); }
 }
 
-// --- 📜 PERSISTENT CHAT HISTORY LOGIC ---
+// --- 📜 PERSISTENT CHAT HISTORY ---
 async function loadChatHistory() {
     try {
         const res = await fetch('/api/history');
@@ -53,18 +72,18 @@ async function loadChatHistory() {
         
         if (data.history && data.history.length > 0) {
             const wrapper = document.getElementById('chat-content-wrapper');
-            wrapper.innerHTML = ''; // Clears the default message
+            if (wrapper) wrapper.innerHTML = ''; 
             
             data.history.forEach(msg => {
                 const isUser = msg.role === 'user';
                 const div = document.createElement('div');
                 div.className = `p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light leading-relaxed animate-slide-up ${isUser ? 'chat-bubble-user' : 'chat-bubble-agent'}`;
                 div.innerHTML = msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                wrapper.appendChild(div);
+                if (wrapper) wrapper.appendChild(div);
             });
 
             const chatBox = document.getElementById('chat-box');
-            setTimeout(() => chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }), 100);
+            if (chatBox) setTimeout(() => chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }), 100);
         }
     } catch(e) { console.error("No history found."); }
 }
@@ -74,29 +93,37 @@ async function clearChat() {
         try {
             await fetch('/api/history', { method: 'DELETE' });
             const wrapper = document.getElementById('chat-content-wrapper');
-            wrapper.innerHTML = `
-                <div class="chat-bubble-agent p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up">
-                    <p>System memory wiped. Ready for new commands.</p>
-                </div>`;
+            if (wrapper) {
+                wrapper.innerHTML = `
+                    <div class="chat-bubble-agent p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up">
+                        <p>System memory wiped. Ready for new commands.</p>
+                    </div>`;
+            }
             showToast("Chat history cleared", "success");
         } catch(e) { showToast("Failed to clear history", "error"); }
     }
 }
 
+// --- ⚙️ INITIALIZATION & META ---
 function init() {
     if (projects.length === 0 && localStorage.getItem('rashboard_v12')) {
         projects = JSON.parse(localStorage.getItem('rashboard_v12'));
         localStorage.setItem('rashboard_v13', JSON.stringify(projects));
     }
     
-    projects.forEach(p => { const keys = Object.keys(p.tabs || {}); if(keys.length && !activeTabs[p.id]) activeTabs[p.id] = keys[0]; });
+    projects.forEach(p => { 
+        if(!p) return;
+        const keys = Object.keys(p.tabs || {}); 
+        if(keys.length && !activeTabs[p.id]) activeTabs[p.id] = keys[0]; 
+    });
+
     saveStateMeta();
     setupKeyboardShortcuts();
     renderProjects();
     pingAll();
     
     syncToBackend(); 
-    loadChatHistory(); // Auto-loads chats on boot!
+    loadChatHistory();
     
     setInterval(syncToBackend, 10000);
     setInterval(pingAll, 30000);
@@ -120,7 +147,7 @@ function setupKeyboardShortcuts() {
         }
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
             const modal = document.getElementById('creator-backdrop');
-            if (modal.classList.contains('active')) {
+            if (modal && modal.classList.contains('active')) {
                 if (!document.getElementById('step-2').classList.contains('hidden')) saveProject();
                 else processEnv();
             }
@@ -135,18 +162,23 @@ function switchView(view) {
     
     ['workspace', 'agent', 'settings'].forEach(v => {
         const isV = view === v;
-        document.getElementById(`nav-btn-${v}`).className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${isV ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
-        document.getElementById(`mob-nav-btn-${v}`).className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${isV ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
+        const navBtn = document.getElementById(`nav-btn-${v}`);
+        const mobNavBtn = document.getElementById(`mob-nav-btn-${v}`);
+        
+        if (navBtn) navBtn.className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${isV ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
+        if (mobNavBtn) mobNavBtn.className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${isV ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
     });
 }
 
+// --- 🔍 UI & SEARCH ---
 function handleSearch(val) { searchTerm = val.toLowerCase().trim(); renderProjects(); }
 function clearSearch() { document.getElementById('global-search').value = ''; handleSearch(''); }
 function toggleGhPagesInput(isChecked) {
     const container = document.getElementById('gh-pages-custom-container');
-    if(isChecked) container.classList.add('hidden'); else container.classList.remove('hidden');
+    if (container) isChecked ? container.classList.add('hidden') : container.classList.remove('hidden');
 }
 
+// --- 🎨 HTML RENDERERS ---
 function generateVaultHtml(project, tabName) {
     const configs = (project.tabs || {})[tabName] || [];
     if (configs.length === 0) return '<div class="py-10 text-center text-xs font-medium text-muted">No variable mapping in this category.</div>';
@@ -160,7 +192,10 @@ function generateTabsHtml(project, currentTab) {
 }
 
 function renderProjects() {
-    const grid = document.getElementById('project-grid'); const emptyState = document.getElementById('empty-state');
+    const grid = document.getElementById('project-grid'); 
+    const emptyState = document.getElementById('empty-state');
+    if (!grid || !emptyState) return;
+
     const filtered = projects.filter(p => !searchTerm || (p.name||'').toLowerCase().includes(searchTerm) || Object.values(p.tabs||{}).flat().some(v => (v.key||'').toLowerCase().includes(searchTerm)));
     if (filtered.length === 0) { grid.innerHTML = ''; emptyState.classList.remove('hidden'); emptyState.classList.add('flex'); return; }
     emptyState.classList.add('hidden'); emptyState.classList.remove('flex');
@@ -198,23 +233,85 @@ function renderProjects() {
                 <div class="expandable-inner flex flex-col" id="content-area-${project.id}">${generateTabsHtml(project, currentActiveTab)}<div class="px-5 py-3 flex-grow vault-content-container" id="vault-${project.id}">${generateVaultHtml(project, currentActiveTab)}</div></div>
             </div>
         </div>`;
-    }).join(''); if(!searchTerm) pingAll();
+    }).join(''); 
+    
+    if(!searchTerm) pingAll();
 }
 
 function switchTab(projectId, tabName) { activeTabs[projectId] = tabName; saveStateMeta(); renderProjects(); }
 function toggleExpand(projectId) { expandedCards.has(projectId) ? expandedCards.delete(projectId) : expandedCards.add(projectId); saveStateMeta(); renderProjects(); }
 function copyText(t, k) { navigator.clipboard.writeText(t).then(() => showToast(`Value for ${k} secured to clipboard`, "success")); }
 
-function openCreator() { editingProjectId = null; document.getElementById('proj-name').value = ''; document.getElementById('proj-live-url').value = ''; document.getElementById('proj-gh').value = ''; document.getElementById('env-input').value = ''; showModalStep(1); }
-function editProject(id) { const p = projects.find(x => x.id === id); if (!p) return; editingProjectId = id; document.getElementById('proj-name').value = p.name || ''; document.getElementById('proj-live-url').value = p.liveUrl || ''; document.getElementById('proj-gh').value = p.ghRepo || ''; let raw = ""; for (const t in (p.tabs || {})) (p.tabs[t] || []).forEach(v => { if(v.key) raw += `${v.key}=${v.value}\n`; }); document.getElementById('env-input').value = raw.trim(); showModalStep(1); }
+// --- 📂 FILE UPLOAD & EXTRACTION ---
+function handleDragOver(e) { e.preventDefault(); document.getElementById('dropzone').classList.add('dragover'); }
+function handleDragLeave(e) { e.preventDefault(); document.getElementById('dropzone').classList.remove('dragover'); }
+function handleDrop(e) { e.preventDefault(); document.getElementById('dropzone').classList.remove('dragover'); processFile(e.dataTransfer.files[0]); }
+function handleFileInput(e) { processFile(e.target.files[0]); e.target.value = ""; }
+
+function processFile(file) {
+    if (!file) return;
+    if (!file.name.includes('.env') && !file.name.match(/^\.env/)) return showToast("Only .env formats accepted", "error");
+    const reader = new FileReader();
+    reader.onload = e => {
+        const ta = document.getElementById('env-input');
+        if (ta) ta.value = ta.value ? ta.value + '\n' + e.target.result : e.target.result;
+        showToast(`Extracted ${file.name} successfully`, "success");
+    };
+    reader.readAsText(file);
+}
+
+// --- 🛠️ MODAL WORKFLOW ---
+function openCreator() { 
+    editingProjectId = null; 
+    document.getElementById('proj-name').value = ''; 
+    document.getElementById('proj-live-url').value = ''; 
+    document.getElementById('proj-gh').value = ''; 
+    document.getElementById('env-input').value = ''; 
+    showModalStep(1); 
+}
+
+function editProject(id) { 
+    const p = projects.find(x => x.id === id); if (!p) return; 
+    editingProjectId = id; 
+    document.getElementById('proj-name').value = p.name || ''; 
+    document.getElementById('proj-live-url').value = p.liveUrl || ''; 
+    document.getElementById('proj-gh').value = p.ghRepo || ''; 
+    let raw = ""; 
+    for (const t in (p.tabs || {})) (p.tabs[t] || []).forEach(v => { if(v.key) raw += `${v.key}=${v.value}\n`; }); 
+    document.getElementById('env-input').value = raw.trim(); 
+    showModalStep(1); 
+}
+
 function handleBackdropClick(e) { if(e.target === e.currentTarget) closeCreator(); }
-function showModalStep(step) { document.getElementById('creator-backdrop').classList.add('active'); if (step === 1) { document.getElementById('step-1').classList.remove('hidden'); document.getElementById('step-2').classList.add('hidden'); document.getElementById('step-2').classList.remove('flex'); } else { document.getElementById('step-1').classList.add('hidden'); document.getElementById('step-2').classList.remove('hidden'); document.getElementById('step-2').classList.add('flex'); } }
-function closeCreator() { document.getElementById('creator-backdrop').classList.remove('active'); tempParsedVars = []; }
+
+function showModalStep(step) { 
+    const backdrop = document.getElementById('creator-backdrop');
+    if (backdrop) backdrop.classList.add('active'); 
+    
+    if (step === 1) { 
+        document.getElementById('step-1').classList.remove('hidden'); 
+        document.getElementById('step-2').classList.add('hidden'); 
+        document.getElementById('step-2').classList.remove('flex'); 
+    } else { 
+        document.getElementById('step-1').classList.add('hidden'); 
+        document.getElementById('step-2').classList.remove('hidden'); 
+        document.getElementById('step-2').classList.add('flex'); 
+    } 
+}
+
+function closeCreator() { 
+    const backdrop = document.getElementById('creator-backdrop');
+    if (backdrop) backdrop.classList.remove('active'); 
+    tempParsedVars = []; 
+}
+
 function backToStep1() { showModalStep(1); }
 
 function processEnv() {
-    const n = document.getElementById('proj-name').value.trim(), e = document.getElementById('env-input').value;
+    const n = document.getElementById('proj-name').value.trim();
+    const e = document.getElementById('env-input').value;
     if (!n) return showToast('Project Identity is required', 'error');
+    
     tempParsedVars = e.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).map((line, idx) => {
         const eq = line.indexOf('='); if(eq === -1) return null;
         const key = line.substring(0, eq).trim(), value = line.substring(eq + 1).trim().replace(/^["']|["']$/g, '');
@@ -225,13 +322,36 @@ function processEnv() {
         else if (k.includes('NEXT_PUBLIC') || k.includes('VITE') || k.includes('REACT')) tab = 'Frontend';
         return { id: idx, key, value, tab };
     }).filter(Boolean);
-    showModalStep(2); renderCategorizationStep();
+    
+    showModalStep(2); 
+    renderCategorizationStep();
 }
 
 function renderCategorizationStep() {
     const list = document.getElementById('parsed-vars-list');
-    if (!tempParsedVars.length) { list.innerHTML = `<div class="text-center py-10 text-muted text-sm border border-dashed border-borderline/20 rounded-xl bg-base">No variables extracted. Setup is currently blank.</div>`; return; }
-    list.innerHTML = tempParsedVars.map((v, i) => `<div class="flex flex-col md:flex-row gap-3 items-start md:items-center bg-elevated/50 p-4 rounded-xl border border-borderline/10 shadow-inner-light"><div class="flex-grow w-full md:w-auto flex flex-col gap-1.5"><input type="text" value="${v.key || ''}" onchange="updateTempVar(${i}, 'key', this.value)" class="w-full bg-transparent border-b border-borderline/10 px-1 py-1 text-sm font-bold text-accent outline-none focus:border-accent transition-colors"><input type="text" value="${v.value || ''}" onchange="updateTempVar(${i}, 'value', this.value)" class="w-full bg-transparent border-b border-borderline/10 px-1 py-1 text-[11px] font-mono text-muted outline-none focus:border-accent transition-colors"></div><div class="flex items-center gap-2 w-full md:w-auto shrink-0"><select onchange="updateTempVar(${i}, 'tab', this.value)" class="flex-1 md:w-36 bg-surface border border-borderline/10 text-xs text-accent font-semibold rounded-lg px-2 py-2 outline-none shadow-inner-light">${DEFAULT_CATEGORIES.map(cat => `<option value="${cat}" ${v.tab === cat ? 'selected' : ''}>${cat}</option>`).join('')}<option value="NEW">+ Custom...</option></select><button onclick="removeTempVar(${i})" class="w-9 h-9 rounded-lg bg-surface border border-borderline/10 flex items-center justify-center text-muted hover:text-red-500 hover:border-red-500/30 transition-all shrink-0"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div></div>`).join('');
+    if (!list) return;
+    
+    if (!tempParsedVars.length) { 
+        list.innerHTML = `<div class="text-center py-10 text-muted text-sm border border-dashed border-borderline/20 rounded-xl bg-base">No variables extracted. Setup is currently blank.</div>`; 
+        return; 
+    }
+    
+    list.innerHTML = tempParsedVars.map((v, i) => `
+        <div class="flex flex-col md:flex-row gap-3 items-start md:items-center bg-elevated/50 p-4 rounded-xl border border-borderline/10 shadow-inner-light">
+            <div class="flex-grow w-full md:w-auto flex flex-col gap-1.5">
+                <input type="text" value="${v.key || ''}" onchange="updateTempVar(${i}, 'key', this.value)" class="w-full bg-transparent border-b border-borderline/10 px-1 py-1 text-sm font-bold text-accent outline-none focus:border-accent transition-colors">
+                <input type="text" value="${v.value || ''}" onchange="updateTempVar(${i}, 'value', this.value)" class="w-full bg-transparent border-b border-borderline/10 px-1 py-1 text-[11px] font-mono text-muted outline-none focus:border-accent transition-colors">
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto shrink-0">
+                <select onchange="updateTempVar(${i}, 'tab', this.value)" class="flex-1 md:w-36 bg-surface border border-borderline/10 text-xs text-accent font-semibold rounded-lg px-2 py-2 outline-none shadow-inner-light">
+                    ${DEFAULT_CATEGORIES.map(cat => `<option value="${cat}" ${v.tab === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                    <option value="NEW">+ Custom...</option>
+                </select>
+                <button onclick="removeTempVar(${i})" class="w-9 h-9 rounded-lg bg-surface border border-borderline/10 flex items-center justify-center text-muted hover:text-red-500 hover:border-red-500/30 transition-all shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+            </div>
+        </div>`).join('');
 }
 
 function addNewRow() { tempParsedVars.push({ key: '', value: '', tab: 'General' }); renderCategorizationStep(); }
@@ -239,70 +359,282 @@ function removeTempVar(index) { tempParsedVars.splice(index, 1); renderCategoriz
 function updateTempVar(index, field, val) { tempParsedVars[index][field] = val; }
 
 function saveProject() {
-    const n = document.getElementById('proj-name').value.trim(); const l = document.getElementById('proj-live-url').value.trim(); const g = document.getElementById('proj-gh').value.trim();
-    const grp = {}; tempParsedVars.filter(v => v.key || v.value).forEach(v => { const t = v.tab || 'General'; if (!grp[t]) grp[t] = []; grp[t].push({ key: v.key, value: v.value }); });
-    if (editingProjectId) { const i = projects.findIndex(p => p.id === editingProjectId); if (i > -1) { projects[i] = { ...projects[i], name: n, liveUrl: l, ghRepo: g, tabs: grp }; } } else { const id = crypto.randomUUID(); projects.unshift({ id, name: n, liveUrl: l, ghRepo: g, tabs: grp }); activeTabs[id] = Object.keys(grp)[0] || null; }
-    localStorage.setItem('rashboard_v13', JSON.stringify(projects)); saveStateMeta(); renderProjects(); pingAll(); syncToBackend(); closeCreator(); showToast("System synchronized", "success");
+    const n = document.getElementById('proj-name').value.trim(); 
+    const l = document.getElementById('proj-live-url').value.trim(); 
+    const g = document.getElementById('proj-gh').value.trim();
+    
+    const grp = {}; 
+    tempParsedVars.filter(v => v.key || v.value).forEach(v => { 
+        const t = v.tab || 'General'; 
+        if (!grp[t]) grp[t] = []; 
+        grp[t].push({ key: v.key, value: v.value }); 
+    });
+    
+    if (editingProjectId) { 
+        const i = projects.findIndex(p => p.id === editingProjectId); 
+        if (i > -1) { projects[i] = { ...projects[i], name: n, liveUrl: l, ghRepo: g, tabs: grp }; } 
+    } else { 
+        const id = crypto.randomUUID(); 
+        projects.unshift({ id, name: n, liveUrl: l, ghRepo: g, tabs: grp }); 
+        activeTabs[id] = Object.keys(grp)[0] || null; 
+    }
+    
+    localStorage.setItem('rashboard_v13', JSON.stringify(projects)); 
+    saveStateMeta(); 
+    renderProjects(); 
+    pingAll(); 
+    syncToBackend(); 
+    closeCreator(); 
+    showToast("System synchronized", "success");
 }
 
-function deleteProject(id) { if(confirm("Delete environment?")) { projects = projects.filter(p => p.id !== id); delete activeTabs[id]; expandedCards.delete(id); localStorage.setItem('rashboard_v13', JSON.stringify(projects)); saveStateMeta(); renderProjects(); syncToBackend(); } }
-function exportData() { if(!projects.length) return; const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projects, null, 2)); const a = document.createElement('a'); a.href = str; a.download = `rashboard-vault-${new Date().toISOString().split('T')[0]}.json`; a.click(); showToast("Vault exported securely", "success"); }
-function importData(e) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = event => { try { const imp = JSON.parse(event.target.result); if (Array.isArray(imp)) { projects = imp; localStorage.setItem('rashboard_v13', JSON.stringify(projects)); projects.forEach(p => { const k = Object.keys(p.tabs || {}); if(k.length) activeTabs[p.id] = k[0]; }); saveStateMeta(); switchView('workspace'); renderProjects(); pingAll(); syncToBackend(); showToast("System restored", "success"); } } catch(err) { showToast("Failed reading payload", "error"); } }; r.readAsText(f); e.target.value = ""; }
-function clearAllData() { if(confirm("Wipe all local Rashboard data? Cannot be undone.")) { projects = []; localStorage.removeItem('rashboard_v13'); renderProjects(); syncToBackend(); showToast("System wiped", "success"); } }
+function deleteProject(id) { 
+    if(confirm("Delete environment?")) { 
+        projects = projects.filter(p => p.id !== id); 
+        delete activeTabs[id]; 
+        expandedCards.delete(id); 
+        localStorage.setItem('rashboard_v13', JSON.stringify(projects)); 
+        saveStateMeta(); 
+        renderProjects(); 
+        syncToBackend(); 
+    } 
+}
+
+// --- 💾 BACKUP & RESTORE ---
+function exportData() { 
+    if(!projects.length) return showToast("No data to export", "error"); 
+    const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projects, null, 2)); 
+    const a = document.createElement('a'); 
+    a.href = str; 
+    a.download = `rashboard-vault-${new Date().toISOString().split('T')[0]}.json`; 
+    a.click(); 
+    showToast("Vault exported securely", "success"); 
+}
+
+function importData(e) {
+    const f = e.target.files[0]; 
+    if (!f) return; 
+    
+    const r = new FileReader(); 
+    r.onload = event => { 
+        try { 
+            const imp = JSON.parse(event.target.result); 
+            if (Array.isArray(imp)) { 
+                // FAILSAFE: Instantly destroy any corrupted 'null' projects
+                projects = imp.filter(p => p !== null); 
+                
+                localStorage.setItem('rashboard_v13', JSON.stringify(projects)); 
+                
+                projects.forEach(p => { 
+                    const k = Object.keys(p.tabs || {}); 
+                    if(k.length) activeTabs[p.id] = k[0]; 
+                }); 
+                
+                saveStateMeta(); 
+                switchView('workspace'); 
+                renderProjects(); 
+                pingAll(); 
+                syncToBackend(); 
+                showToast("System restored successfully", "success"); 
+            } else {
+                throw new Error("Invalid format: Not an array");
+            }
+        } catch(err) { 
+            console.error("Restore Error:", err);
+            // Now the toast will tell you exactly what went wrong!
+            showToast(`Error: ${err.message}`, "error"); 
+        } 
+    }; 
+    r.readAsText(f); 
+    e.target.value = ""; 
+}
+
+function clearAllData() { 
+    if(confirm("Wipe all local Rashboard data? Cannot be undone.")) { 
+        projects = []; 
+        localStorage.removeItem('rashboard_v13'); 
+        renderProjects(); 
+        syncToBackend(); 
+        showToast("System wiped", "success"); 
+    } 
+}
 
 function showToast(msg, type = "success") {
-    const t = document.getElementById('toast'), i = document.getElementById('toast-icon'); document.getElementById('toast-msg').innerText = msg;
+    const t = document.getElementById('toast'), i = document.getElementById('toast-icon'); 
+    if (!t || !i) return;
+    
+    document.getElementById('toast-msg').innerText = msg;
     i.className = `w-5 h-5 shrink-0 rounded-full flex items-center justify-center border ${type === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-500' : 'border-blue-500/30 bg-blue-500/10 text-blue-500'}`;
     i.innerHTML = type === 'error' ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>' : '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>';
-    t.classList.remove('opacity-0', 'pointer-events-none'); t.classList.remove(window.innerWidth < 768 ? '-translate-y-20' : 'translate-y-20'); t.classList.add('translate-y-0');
-    setTimeout(() => { t.classList.add('opacity-0', 'pointer-events-none'); t.classList.remove('translate-y-0'); t.classList.add(window.innerWidth < 768 ? '-translate-y-20' : 'translate-y-20'); }, 3000);
+    
+    t.classList.remove('opacity-0', 'pointer-events-none'); 
+    t.classList.remove(window.innerWidth < 768 ? '-translate-y-20' : 'translate-y-20'); 
+    t.classList.add('translate-y-0');
+    
+    setTimeout(() => { 
+        t.classList.add('opacity-0', 'pointer-events-none'); 
+        t.classList.remove('translate-y-0'); 
+        t.classList.add(window.innerWidth < 768 ? '-translate-y-20' : 'translate-y-20'); 
+    }, 3000);
+}
+
+// --- 📡 NETWORK & PING ---
+function detectServices(cfgs) {
+    const d = [], a = new Set(); 
+    cfgs.forEach(c => {
+        if(!c.value) return;
+        SERVICES.forEach(s => { const m = c.value.match(s.regex); if (m && !a.has(s.name)) { d.push({ name: s.name, url: s.getUrl(m), color: s.color }); a.add(s.name); } });
+    }); 
+    return d;
 }
 
 function forcePing(id) { const p = projects.find(x => x.id === id); if(p) autoPingMainUrl(p); }
 function pingAll() { projects.forEach(p => autoPingMainUrl(p)); }
 
 async function autoPingMainUrl(p) {
-    const d = document.getElementById(`status-${p.id}`); if (!d) return; let u = p.liveUrl; 
+    const d = document.getElementById(`status-${p.id}`); if (!d) return; 
+    let u = p.liveUrl; 
     if (!u) { const safeTabs = p.tabs || {}; for (const t in safeTabs) { const f = (safeTabs[t] || []).find(c => c.value && c.value.startsWith('http')); if (f) { u = f.value; break; } } }
     if (!u) { d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-muted"></span><span class="text-[9px] text-muted font-bold tracking-widest uppercase">IDLE</span>`; return; }
+    
     d.innerHTML = `<span class="flex h-1.5 w-1.5 relative"><span class="animate-ping-slow absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75"></span><span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span></span><span class="text-[9px] text-blue-500 font-bold tracking-widest uppercase">PINGING</span>`;
     const c = new AbortController(); const tId = setTimeout(() => c.abort(), 3500);
-    try { await fetch(u, { mode: 'no-cors', signal: c.signal, cache: 'no-store' }); clearTimeout(tId); d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span><span class="text-[9px] text-emerald-500 font-bold tracking-widest uppercase">ONLINE</span>`;
-    } catch (err) { if (err.name === 'AbortError') { d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse"></span><span class="text-[9px] text-amber-500 font-bold tracking-widest uppercase">WAKING SERVER</span>`; setTimeout(() => autoPingMainUrl(p), 8000); } else { d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></span><span class="text-[9px] text-red-500 font-bold tracking-widest uppercase">OFFLINE</span>`; } }
-}
-
-// --- 🎙️ VOICE ENGINE & AGENT LOGIC ---
-let voiceResponseEnabled = false;
-const voiceToggleBtn = document.getElementById('voice-toggle-btn'); const voiceIcon = document.getElementById('voice-icon'); const voiceStatusText = document.getElementById('voice-status-text');
-voiceToggleBtn.addEventListener('click', () => { voiceResponseEnabled = !voiceResponseEnabled; if (voiceResponseEnabled) { voiceStatusText.textContent = "AUDIO ON"; voiceToggleBtn.classList.replace('text-muted', 'text-blue-400'); voiceIcon.classList.replace('text-muted', 'text-blue-400'); voiceIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.898a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>`; } else { voiceStatusText.textContent = "SILENT"; voiceToggleBtn.classList.replace('text-blue-400', 'text-muted'); voiceIcon.classList.replace('text-blue-400', 'text-muted'); window.speechSynthesis.cancel(); voiceIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>`; } });
-function speakAgentText(text) { if (!voiceResponseEnabled || !window.speechSynthesis) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text.replace(/[*#]/g, '').replace(/_/g, ' ')); utterance.rate = 1.05; utterance.pitch = 1.0; window.speechSynthesis.speak(utterance); }
-
-const micBtn = document.getElementById('mic-btn'); const messageInput = document.getElementById('message-input'); const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; let recognition = null; let isListening = false;
-if (SpeechRecognition) {
-    recognition = new SpeechRecognition(); recognition.continuous = false; recognition.interimResults = false; recognition.lang = 'en-US';
-    recognition.onstart = () => { isListening = true; micBtn.classList.add('mic-active', 'animate-pulse-fast'); messageInput.placeholder = "Listening..."; messageInput.disabled = true; };
-    recognition.onresult = (e) => { messageInput.value = e.results[0][0].transcript; document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); };
-    recognition.onerror = () => resetMicState(); recognition.onend = () => resetMicState();
-    micBtn.addEventListener('click', () => { if (isListening) recognition.stop(); else { try { recognition.start(); } catch (e) {} } });
-} else { micBtn.style.display = 'none'; messageInput.classList.remove('pl-12'); messageInput.classList.add('pl-4'); }
-function resetMicState() { isListening = false; micBtn.classList.remove('mic-active', 'animate-pulse-fast'); messageInput.placeholder = "Ask agent..."; messageInput.disabled = false; }
-
-const chatForm = document.getElementById('chat-form'); const chatBox = document.getElementById('chat-box'); const chatWrapper = document.getElementById('chat-content-wrapper'); const sendBtn = document.getElementById('send-btn');
-function appendMessage(text, isUser) {
-    const div = document.createElement('div'); div.className = `p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up leading-relaxed ${isUser ? 'chat-bubble-user' : 'chat-bubble-agent'}`;
-    div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); chatWrapper.appendChild(div);
-    setTimeout(() => { chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }); }, 50);
-}
-
-chatForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); const message = messageInput.value.trim(); if (!message) return;
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    appendMessage(message, true); messageInput.value = ''; sendBtn.innerHTML = `<span class="w-4 h-4 border-2 border-accentInv border-t-transparent rounded-full animate-spin"></span>`; sendBtn.disabled = true;
-    try {
-        const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) });
-        const data = await response.json(); appendMessage(data.response, false); speakAgentText(data.response);
-    } catch (error) { appendMessage("System Error: Failed to reach the Core router.", false); } finally {
-        sendBtn.innerHTML = `<span class="hidden md:inline">SEND</span><svg class="w-4 h-4 md:w-3 md:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>`;
-        sendBtn.disabled = false; if (window.innerWidth > 768 && !isListening) messageInput.focus();
+    
+    try { 
+        await fetch(u, { mode: 'no-cors', signal: c.signal, cache: 'no-store' }); 
+        clearTimeout(tId); 
+        d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span><span class="text-[9px] text-emerald-500 font-bold tracking-widest uppercase">ONLINE</span>`;
+    } catch (err) { 
+        if (err.name === 'AbortError') { 
+            d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse"></span><span class="text-[9px] text-amber-500 font-bold tracking-widest uppercase">WAKING SERVER</span>`; 
+            setTimeout(() => autoPingMainUrl(p), 8000); 
+        } else { 
+            d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></span><span class="text-[9px] text-red-500 font-bold tracking-widest uppercase">OFFLINE</span>`; 
+        } 
     }
-});
+}
+
+// --- 🎙️ VOICE ENGINE & AI CHAT ---
+function speakAgentText(text) { 
+    if (!voiceResponseEnabled || !window.speechSynthesis) return; 
+    window.speechSynthesis.cancel(); 
+    const utterance = new SpeechSynthesisUtterance(text.replace(/[*#]/g, '').replace(/_/g, ' ')); 
+    utterance.rate = 1.05; utterance.pitch = 1.0; 
+    window.speechSynthesis.speak(utterance); 
+}
+
+function resetMicState() { 
+    isListening = false; 
+    const micBtn = document.getElementById('mic-btn');
+    const messageInput = document.getElementById('message-input');
+    if(micBtn) micBtn.classList.remove('mic-active', 'animate-pulse-fast'); 
+    if(messageInput) { messageInput.placeholder = "Ask agent..."; messageInput.disabled = false; } 
+}
+
+function appendMessage(text, isUser) {
+    const chatWrapper = document.getElementById('chat-content-wrapper');
+    const chatBox = document.getElementById('chat-box');
+    if (!chatWrapper) return;
+    
+    const div = document.createElement('div'); 
+    div.className = `p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up leading-relaxed ${isUser ? 'chat-bubble-user' : 'chat-bubble-agent'}`;
+    div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); 
+    chatWrapper.appendChild(div);
+    
+    if (chatBox) setTimeout(() => { chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }); }, 50);
+}
+
+// --- 🎯 SAFELY BIND EVENT LISTENERS AFTER DOM LOAD ---
+function setupEventListeners() {
+    const voiceToggleBtn = document.getElementById('voice-toggle-btn'); 
+    const voiceIcon = document.getElementById('voice-icon'); 
+    const voiceStatusText = document.getElementById('voice-status-text');
+    
+    if(voiceToggleBtn) {
+        voiceToggleBtn.addEventListener('click', () => { 
+            voiceResponseEnabled = !voiceResponseEnabled; 
+            if (voiceResponseEnabled) { 
+                voiceStatusText.textContent = "AUDIO ON"; 
+                voiceToggleBtn.classList.replace('text-muted', 'text-blue-400'); 
+                voiceIcon.classList.replace('text-muted', 'text-blue-400'); 
+                voiceIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.898a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>`; 
+            } else { 
+                voiceStatusText.textContent = "SILENT"; 
+                voiceToggleBtn.classList.replace('text-blue-400', 'text-muted'); 
+                voiceIcon.classList.replace('text-blue-400', 'text-muted'); 
+                window.speechSynthesis.cancel(); 
+                voiceIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>`; 
+            } 
+        });
+    }
+
+    const micBtn = document.getElementById('mic-btn'); 
+    const messageInput = document.getElementById('message-input'); 
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; 
+    
+    if (SpeechRecognition && micBtn && messageInput) {
+        recognition = new SpeechRecognition(); 
+        recognition.continuous = false; 
+        recognition.interimResults = false; 
+        recognition.lang = 'en-US';
+        
+        recognition.onstart = () => { 
+            isListening = true; 
+            micBtn.classList.add('mic-active', 'animate-pulse-fast'); 
+            messageInput.placeholder = "Listening..."; 
+            messageInput.disabled = true; 
+        };
+        
+        recognition.onresult = (e) => { 
+            messageInput.value = e.results[0][0].transcript; 
+            document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); 
+        };
+        
+        recognition.onerror = () => resetMicState(); 
+        recognition.onend = () => resetMicState();
+        
+        micBtn.addEventListener('click', () => { 
+            if (isListening) recognition.stop(); 
+            else { try { recognition.start(); } catch (e) {} } 
+        });
+    } else if (micBtn && messageInput) { 
+        micBtn.style.display = 'none'; 
+        messageInput.classList.remove('pl-12'); 
+        messageInput.classList.add('pl-4'); 
+    }
+
+    const chatForm = document.getElementById('chat-form'); 
+    const sendBtn = document.getElementById('send-btn');
+    
+    if (chatForm && messageInput && sendBtn) {
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+            const message = messageInput.value.trim(); 
+            if (!message) return;
+            
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            
+            appendMessage(message, true); 
+            messageInput.value = ''; 
+            sendBtn.innerHTML = `<span class="w-4 h-4 border-2 border-accentInv border-t-transparent rounded-full animate-spin"></span>`; 
+            sendBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/chat', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ message }) 
+                });
+                const data = await response.json(); 
+                appendMessage(data.response, false); 
+                speakAgentText(data.response);
+            } catch (error) { 
+                appendMessage("System Error: Failed to reach the Core router.", false); 
+            } finally {
+                sendBtn.innerHTML = `<span class="hidden md:inline">SEND</span><svg class="w-4 h-4 md:w-3 md:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>`;
+                sendBtn.disabled = false; 
+                if (window.innerWidth > 768 && !isListening) messageInput.focus();
+            }
+        });
+    }
+}
