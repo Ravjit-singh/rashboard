@@ -108,8 +108,9 @@
         .mic-active { color: rgb(239 68 68) !important; background: rgb(239 68 68 / 0.1); border-color: rgb(239 68 68 / 0.3) !important; }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden selection:bg-accent selection:text-accentInv">
+<body class="flex h-[100dvh] overflow-hidden selection:bg-accent selection:text-accentInv">
     
+    <!-- Splash Screen -->
     <div id="splash-screen" class="fixed inset-0 z-[100] bg-base flex flex-col items-center justify-center transition-all duration-700">
         <div class="relative flex flex-col items-center justify-center">
             <div class="absolute inset-0 bg-blue-500 blur-[50px] opacity-20 rounded-full w-32 h-32 scale-150 animate-pulse-slow"></div>
@@ -125,7 +126,8 @@
 
     <div class="ambient-glow"></div>
 
-    <nav class="hidden md:flex flex-col w-[260px] h-screen bg-surface border-r border-borderline/5 z-40 shrink-0 relative">
+    <!-- Desktop Sidebar -->
+    <nav class="hidden md:flex flex-col w-[260px] h-[100dvh] bg-surface border-r border-borderline/5 z-40 shrink-0 relative">
         <div class="flex items-center gap-3 px-8 pt-8 mb-10">
             <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-[0_4px_14px_rgba(0,0,0,0.25)] overflow-hidden border border-borderline/10 bg-black">
                 <img src="./icon-512.png" alt="Logo" class="w-full h-full object-cover logo-invert" onerror="this.style.display='none'" />
@@ -148,6 +150,7 @@
         </div>
     </nav>
 
+    <!-- Mobile Floating Dock (Z-index 40 ensures it floats above content) -->
     <nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface/90 backdrop-blur-xl border border-borderline/10 z-40 flex items-center justify-between px-1.5 py-1.5 rounded-[2rem] shadow-float w-[90%] max-w-sm">
         <button onclick="switchView('workspace')" id="mob-nav-btn-workspace" class="mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full bg-elevated/80 text-accent transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
@@ -164,7 +167,8 @@
         </button>
     </nav>
 
-    <main id="view-workspace" class="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
+    <!-- Main Workspace View -->
+    <main id="view-workspace" class="flex-1 flex flex-col h-[100dvh] overflow-hidden relative z-10">
         <header class="bg-base/60 backdrop-blur-2xl border-b border-borderline/5 px-6 md:px-10 py-5 md:py-6 flex flex-col md:flex-row justify-between md:items-center gap-4 shrink-0 z-20">
             <div>
                 <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Overview</h1>
@@ -197,7 +201,10 @@
         </div>
     </main>
 
-    <main id="view-agent" class="hidden flex-1 flex-col h-screen overflow-hidden relative z-10 bg-base">
+    <!-- 🤖 COMMAND CENTER VIEW -->
+    <!-- h-[100dvh] solves the Android chrome bar height issue perfectly -->
+    <main id="view-agent" class="hidden flex-1 flex-col h-[100dvh] overflow-hidden relative z-10 bg-base">
+        <!-- Header -->
         <header class="bg-surface/80 backdrop-blur-xl border-b border-borderline/5 px-6 md:px-10 py-4 md:py-6 shrink-0 z-20 shadow-sm flex justify-between items-center">
             <div>
                 <h1 class="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-3">
@@ -207,12 +214,14 @@
                 <p class="text-xs text-muted mt-1 font-medium">Agentic system monitoring active.</p>
             </div>
             
+            <!-- Voice Audio Toggle -->
             <button id="voice-toggle-btn" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-borderline/10 bg-elevated/50 hover:bg-borderline/10 transition-colors text-xs font-bold text-muted">
                 <svg id="voice-icon" class="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
                 <span id="voice-status-text">SILENT</span>
             </button>
         </header>
 
+        <!-- Chat History -->
         <div class="flex-1 overflow-y-auto hide-scroll p-4 md:p-8 flex flex-col gap-4 w-full" id="chat-box">
             <div class="max-w-4xl mx-auto w-full flex flex-col gap-4" id="chat-content-wrapper">
                 <div class="chat-bubble-agent p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up">
@@ -221,7 +230,8 @@
             </div>
         </div>
 
-        <div class="bg-surface/80 backdrop-blur-xl border-t border-borderline/5 p-4 pb-28 md:pb-8 shrink-0 z-30 relative w-full">
+        <!-- Input Area (pb-32 completely clears the mobile floating dock) -->
+        <div class="bg-surface/80 backdrop-blur-xl border-t border-borderline/5 p-4 pb-32 md:pb-8 shrink-0 z-30 relative w-full">
             <form id="chat-form" class="max-w-4xl mx-auto relative flex items-center w-full">
                 <button type="button" id="mic-btn" class="absolute left-3 text-muted hover:text-accent transition-colors p-2 rounded-full border border-transparent z-10" title="Tap to speak">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
@@ -247,7 +257,8 @@
         </div>
     </main>
 
-    <main id="view-settings" class="hidden flex-1 flex-col h-screen overflow-hidden relative z-10">
+    <!-- Settings View -->
+    <main id="view-settings" class="hidden flex-1 flex-col h-[100dvh] overflow-hidden relative z-10">
         <header class="bg-base/60 backdrop-blur-2xl border-b border-borderline/5 px-6 md:px-10 py-5 md:py-8 shrink-0 z-20">
             <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Preferences</h1>
             <p class="text-[13px] text-muted mt-1 font-medium">Manage your local data vault.</p>
@@ -279,8 +290,9 @@
         </div>
     </main>
 
+    <!-- Creator Modal Overlay -->
     <div id="creator-backdrop" class="fixed inset-0 bg-base/80 z-50 flex items-end md:items-center justify-center modal-overlay p-0 md:p-6" onclick="handleBackdropClick(event)">
-        <div class="glass-card w-full h-[90vh] md:h-auto md:max-h-[90vh] md:max-w-[720px] flex flex-col modal-content rounded-t-[32px] md:rounded-[24px] border-b-0 md:border-b bg-surface shadow-float" onclick="event.stopPropagation()">
+        <div class="glass-card w-full h-[90dvh] md:h-auto md:max-h-[90vh] md:max-w-[720px] flex flex-col modal-content rounded-t-[32px] md:rounded-[24px] border-b-0 md:border-b bg-surface shadow-float" onclick="event.stopPropagation()">
             
             <div class="w-full flex justify-center pt-4 pb-2 md:hidden shrink-0" onclick="closeCreator()">
                 <div class="w-12 h-1.5 bg-borderline/20 rounded-full"></div>
@@ -300,6 +312,7 @@
                 </div>
             </div>
 
+            <!-- Step 1: Base Info -->
             <div id="step-1" class="p-6 md:p-8 overflow-y-auto hide-scroll flex-grow">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
                     <div>
@@ -312,12 +325,14 @@
                     </div>
                 </div>
 
+                <!-- GitHub Integration Section -->
                 <div class="mb-6">
                     <label class="block text-[11px] font-bold text-muted mb-2 uppercase tracking-widest">GitHub Integration</label>
                     <div class="flex items-center bg-base border border-borderline/10 shadow-inner-input rounded-xl overflow-hidden focus-within:border-accent/30 transition-all mb-3">
                         <span class="px-4 py-3.5 text-muted text-sm font-mono border-r border-borderline/10 bg-elevated/30 select-none hidden md:block">github.com/</span>
                         <input type="text" id="proj-gh" placeholder="username/repository" autocomplete="off" class="bg-transparent border-none px-4 py-3.5 text-sm text-accent w-full outline-none font-mono">
                     </div>
+                    <!-- Native Toggle for GitHub Pages -->
                     <label class="flex items-center justify-between cursor-pointer group mb-3 px-1">
                         <span class="text-xs font-semibold text-muted group-hover:text-accent transition-colors">Auto-link GitHub Pages</span>
                         <div class="relative">
@@ -349,6 +364,7 @@
                 </button>
             </div>
 
+            <!-- Step 2: Categorization -->
             <div id="step-2" class="p-0 overflow-hidden flex-col hidden h-full">
                 <div class="px-6 md:px-8 py-4 bg-surface border-b border-borderline/10 flex justify-between items-center shrink-0">
                     <span class="text-sm font-bold tracking-tight">Review Mapping</span>
@@ -368,6 +384,7 @@
         </div>
     </div>
 
+    <!-- Toast Notification -->
     <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 md:top-auto md:left-auto md:bottom-8 md:right-8 bg-surface border border-borderline/10 text-accent px-5 py-3.5 rounded-2xl shadow-float flex items-center gap-3 transform -translate-y-20 md:translate-y-20 opacity-0 pointer-events-none transition-all duration-300 z-[70] min-w-[200px] shadow-inner-light">
         <div id="toast-icon" class="w-5 h-5 shrink-0 rounded-full flex items-center justify-center border"></div>
         <span id="toast-msg" class="text-sm font-bold tracking-tight"></span>
@@ -392,6 +409,23 @@
             { name: 'Stripe', regex: /sk_live|pk_live|sk_test|pk_test/i, getUrl: () => `https://dashboard.stripe.com/`, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
             { name: 'Vercel', regex: /\.vercel\.app/i, getUrl: () => `https://vercel.com/dashboard`, color: 'text-accent bg-elevated border-borderline/20' }
         ];
+
+        // --- THE BOOT SEQUENCE & SPLASH SCREEN FIX ---
+        window.onload = () => {
+            init(); // Boots up the app logic
+            switchView('workspace'); // Sets the initial UI view
+            
+            // Wait 1.4 seconds, then fade out the splash screen
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                if(splash) {
+                    splash.style.opacity = '0';
+                    splash.style.pointerEvents = 'none';
+                    // Remove from DOM flow after fade
+                    setTimeout(() => splash.style.display = 'none', 700);
+                }
+            }, 1400); 
+        };
 
         // --- DYNAMIC SYNC BRIDGE ---
         async function syncArchitecture() {
@@ -759,7 +793,7 @@
                     const eq = line.indexOf('='); if(eq === -1) return null;
                     const key = line.substring(0, eq).trim(), value = line.substring(eq + 1).trim().replace(/^["']|["']$/g, '');
                     let tab = 'General'; const k = key.toUpperCase();
-                    if (k.includes('DB') || k.includes('DATABASE') || k.includes('POSTGRES')) tab = 'Database';
+                    if (k.includes('DB') || k.includes('DATABASE') || k.includes('POSTGRES') || k.includes('SUPABASE')) tab = 'Database';
                     else if (k.includes('AWS') || k.includes('S3') || k.includes('BUCKET')) tab = 'Storage';
                     else if (k.includes('API') || k.includes('SECRET') || k.includes('CLERK') || k.includes('STRIPE')) tab = 'Backend';
                     else if (k.includes('NEXT_PUBLIC') || k.includes('VITE') || k.includes('REACT')) tab = 'Frontend';
@@ -1019,9 +1053,6 @@
                 if (window.innerWidth > 768 && !isListening) messageInput.focus();
             }
         });
-
-        // Start in Workspace view
-        window.addEventListener('DOMContentLoaded', () => { switchView('workspace'); });
     </script>
 </body>
 </html>
