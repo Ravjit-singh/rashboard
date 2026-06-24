@@ -20,7 +20,7 @@ const tools = [
         type: "function",
         function: {
             name: "getProjectStatus",
-            description: "Get the live URL and the secret environment vault keys (like Supabase DB keys) for a mapped project.",
+            description: "Get the live URL and the secret environment vault keys for a mapped project.",
             parameters: {
                 type: "object",
                 properties: {
@@ -48,13 +48,27 @@ const tools = [
     {
         type: "function",
         function: {
+            name: "listSupabaseTables",
+            description: "ALWAYS run this FIRST to see exactly what tables exist in the database before querying.",
+            parameters: {
+                type: "object",
+                properties: {
+                    projectName: { type: "string", description: "The exact name of the project to pull credentials for." }
+                },
+                required: ["projectName"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
             name: "querySupabaseDatabase",
             description: "Fetch live production data directly from a project's Supabase database. Use this to count rows or check recent records.",
             parameters: {
                 type: "object",
                 properties: {
-                    projectName: { type: "string", description: "The exact name of the project to pull credentials for." },
-                    tableName: { type: "string", description: "The exact name of the database table (e.g., 'pros', 'users', 'profiles')." },
+                    projectName: { type: "string", description: "The exact name of the project." },
+                    tableName: { type: "string", description: "The exact name of the database table." },
                     selectQuery: { type: "string", description: "Set to 'count' to get the total row count, or '*' to get actual row data." },
                     limit: { type: "number", description: "Max rows to fetch if pulling data. Default is 5. Max 20." }
                 },
@@ -86,7 +100,7 @@ async function executeTool(toolName, toolArgs) {
     }
 
     // --- 🗄️ THE LIVE DATABASE QUERY ENGINE ---
-    if (toolName === "querySupabaseDatabase") {
+    if (toolName === "listSupabaseTables" || toolName === "querySupabaseDatabase") {
         const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase() === toolArgs.projectName.toLowerCase());
         if (!project) return JSON.stringify({ error: "Project not found in UI vault." });
 
@@ -94,63 +108,82 @@ async function executeTool(toolName, toolArgs) {
         let anonKey = '';
         let serviceKey = '';
         
-        // Magically find the Supabase keys in the chaotic vault
         Object.values(project.tabs || {}).flat().forEach(v => {
             const k = (v.key || '').toUpperCase();
             const val = (v.value || '').trim();
             if (val.includes('supabase.co')) supaUrl = val;
             if (val.startsWith('eyJ')) {
-                // Explicitly separate Service Role and Anon keys
                 if (k.includes('SERVICE') || k.includes('ROLE')) serviceKey = val;
                 else if (k.includes('ANON')) anonKey = val;
                 else if (!anonKey) anonKey = val; 
             }
         });
 
-        // PRIORITY: Use Service Role (God Mode) if it exists, otherwise fallback to Anon
         const activeKey = serviceKey || anonKey;
 
         if (!supaUrl || !activeKey) {
             return JSON.stringify({ error: "Missing Supabase URL or Key in the project's Rashboard vault." });
         }
 
-        const baseUrl = supaUrl.replace(/\/$/, '') + '/rest/v1/' + toolArgs.tableName;
-        const limit = Math.min(toolArgs.limit || 5, 20);
-        
-        try {
-            const headers = {
-                'apikey': activeKey,
-                'Authorization': `Bearer ${activeKey}`,
-                'Content-Type': 'application/json'
-            };
+        // Failsafe: Removes /rest/v1/ if you accidentally pasted it in the UI
+        const cleanSupaUrl = supaUrl.split('/rest/v1')[0].replace(/\/$/, '');
 
-            let fetchUrl = baseUrl;
+        const headers = {
+            'apikey': activeKey,
+            'Authorization': `Bearer ${activeKey}`,
+            'Content-Type': 'application/json'
+        };
 
-            // Handle row counting efficiently via PostgREST headers
-            if (toolArgs.selectQuery === 'count') {
-                headers['Prefer'] = 'count=exact';
-                fetchUrl += '?select=*&limit=1'; 
-            } else {
-                fetchUrl += `?select=${toolArgs.selectQuery || '*'}&limit=${limit}`;
-            }
-
-            const dbRes = await fetch(fetchUrl, { headers });
-            
-            if (!dbRes.ok) {
-                const errText = await dbRes.text();
-                return JSON.stringify({ error: `Database rejection: ${dbRes.statusText}`, details: errText });
-            }
-
-            if (toolArgs.selectQuery === 'count') {
-                const range = dbRes.headers.get('content-range') || '0-0/0';
-                const totalCount = range.split('/')[1] || 0;
-                return JSON.stringify({ tableName: toolArgs.tableName, totalRowCount: parseInt(totalCount, 10) });
-            } else {
+        // NEW: Fetch all available tables via OpenAPI spec
+        if (toolName === "listSupabaseTables") {
+            try {
+                const dbRes = await fetch(cleanSupaUrl + '/rest/v1/', { headers });
+                if (!dbRes.ok) return JSON.stringify({ error: "Failed to connect to database schema." });
                 const data = await dbRes.json();
-                return JSON.stringify({ tableName: toolArgs.tableName, rowsReturned: data.length, data: data });
+                
+                const tables = Object.keys(data.paths || {})
+                    .map(path => path.replace('/', ''))
+                    .filter(name => name !== 'rpc' && name !== 'introspection');
+                
+                return JSON.stringify({ availableTables: tables });
+            } catch (err) {
+                return JSON.stringify({ error: "Network error listing tables." });
             }
-        } catch (err) {
-            return JSON.stringify({ error: "Failed to establish network connection to Database." });
+        }
+
+        // Execute specific table query
+        if (toolName === "querySupabaseDatabase") {
+            const baseUrl = cleanSupaUrl + '/rest/v1/' + toolArgs.tableName;
+            const limit = Math.min(toolArgs.limit || 5, 20);
+            
+            try {
+                let fetchUrl = baseUrl;
+
+                if (toolArgs.selectQuery === 'count') {
+                    headers['Prefer'] = 'count=exact';
+                    fetchUrl += '?select=*&limit=1'; 
+                } else {
+                    fetchUrl += `?select=${toolArgs.selectQuery || '*'}&limit=${limit}`;
+                }
+
+                const dbRes = await fetch(fetchUrl, { headers });
+                
+                if (!dbRes.ok) {
+                    const errText = await dbRes.text();
+                    return JSON.stringify({ error: `Database rejection: ${dbRes.statusText}`, details: errText });
+                }
+
+                if (toolArgs.selectQuery === 'count') {
+                    const range = dbRes.headers.get('content-range') || '0-0/0';
+                    const totalCount = range.split('/')[1] || 0;
+                    return JSON.stringify({ tableName: toolArgs.tableName, totalRowCount: parseInt(totalCount, 10) });
+                } else {
+                    const data = await dbRes.json();
+                    return JSON.stringify({ tableName: toolArgs.tableName, rowsReturned: data.length, data: data });
+                }
+            } catch (err) {
+                return JSON.stringify({ error: "Failed to establish network connection to Database." });
+            }
         }
     }
 
@@ -174,9 +207,10 @@ async function runAgent(userPrompt) {
     RULES:
     1. To read project URLs or DB keys, use getProjectStatus.
     2. To save facts, use saveToMemory.
-    3. To fetch live data or count rows from a project's database, use querySupabaseDatabase. 
-    4. If querying a database, neatly summarize the data. Do NOT dump raw JSON to the user.
-    5. CRITICAL: Never output raw <function> tags. Only use the native tool API.`;
+    3. ALWAYS use listSupabaseTables FIRST to find the correct table name before using querySupabaseDatabase. Do not guess table names.
+    4. To fetch live data or count rows, use querySupabaseDatabase using the EXACT table name you found. 
+    5. If querying a database, neatly summarize the data. Do NOT dump raw JSON to the user.
+    6. CRITICAL: Never output raw <function> tags. Only use the native tool API.`;
 
     const messages = [
         { role: "system", content: systemPrompt },
