@@ -50,67 +50,11 @@
             }
         }
     </script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
-        
-        :root {
-            --c-base: 0 0 0; --c-surface: 9 9 11; --c-elevated: 24 24 27; --c-border: 255 255 255;
-            --c-accent: 255 255 255; --c-accent-inv: 0 0 0; --c-muted: 161 161 170;
-        }
 
-        @media (prefers-color-scheme: light) {
-            :root {
-                --c-base: 250 250 250; --c-surface: 255 255 255; --c-elevated: 244 244 245; --c-border: 0 0 0;
-                --c-accent: 9 9 11; --c-accent-inv: 255 255 255; --c-muted: 113 113 122;
-            }
-        }
-        
-        body { background-color: rgb(var(--c-base)); color: rgb(var(--c-accent)); -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
-        ::-webkit-scrollbar { display: none; } .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        .logo-invert { transition: filter 0.3s ease; }
-        @media (prefers-color-scheme: light) { .logo-invert { filter: invert(1); } }
-
-        .ambient-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle at 50% 0%, rgba(59,130,246,0.04) 0%, rgba(0,0,0,0) 60%); pointer-events: none; z-index: 0; }
-        @media (prefers-color-scheme: light) { .ambient-glow { background: radial-gradient(circle at 50% 0%, rgba(0,0,0,0.02) 0%, rgba(255,255,255,0) 60%); } }
-        
-        .glass-card { background: linear-gradient(180deg, rgb(var(--c-surface)), rgb(var(--c-base))); border-radius: 20px; box-shadow: var(--tw-shadow-elite); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative; z-index: 10; }
-        .glass-card:hover { box-shadow: var(--tw-shadow-elite-hover); transform: translateY(-2px); border-color: rgb(var(--c-border) / 0.15); }
-
-        .expandable-wrapper { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .expandable-wrapper.expanded { grid-template-rows: 1fr; }
-        .expandable-inner { overflow: hidden; }
-        
-        .vault-content-container { transition: opacity 0.2s ease-in-out; }
-
-        .input-elite { background: rgb(var(--c-base)); border: 1px solid transparent; box-shadow: var(--tw-shadow-inner-input); border-radius: 12px; color: rgb(var(--c-accent)); transition: all 0.2s ease; }
-        .input-elite:focus { background: rgb(var(--c-surface)); border-color: rgb(var(--c-accent) / 0.3); outline: none; box-shadow: var(--tw-shadow-inner-input), 0 0 0 3px rgb(var(--c-accent) / 0.05); }
-
-        .dropzone-elite { border: 1.5px dashed rgb(var(--c-border) / 0.15); border-radius: 16px; background: rgb(var(--c-elevated) / 0.3); transition: all 0.3s ease; position: relative; }
-        .dropzone-elite.dragover { border-color: rgb(var(--c-accent)); background: rgb(var(--c-accent) / 0.05); transform: scale(1.02); }
-
-        .elite-tab { color: rgb(var(--c-muted)); transition: all 0.2s ease; position: relative; }
-        .elite-tab:hover { color: rgb(var(--c-accent)); }
-        .elite-tab.active { color: rgb(var(--c-accent)); font-weight: 600; }
-        .elite-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: rgb(var(--c-accent)); border-radius: 2px 2px 0 0; }
-        
-        .modal-overlay { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; backdrop-filter: blur(5px); }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        .modal-content { opacity: 0; transform: translateY(20px) scale(0.98); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .modal-overlay.active .modal-content { opacity: 1; transform: translateY(0) scale(1); }
-
-        .dock-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid; transition: all 0.2s ease; }
-        .dock-pill:hover { opacity: 0.8; transform: scale(0.98); }
-
-        /* Agent Chat Styles */
-        .chat-bubble-user { background: rgb(59 130 246 / 0.15); border: 1px solid rgb(59 130 246 / 0.3); color: rgb(var(--c-accent)); border-bottom-right-radius: 0; align-self: flex-end; }
-        .chat-bubble-agent { background: rgb(var(--c-elevated) / 0.5); border: 1px solid rgb(var(--c-border) / 0.1); color: rgb(var(--c-accent)); border-bottom-left-radius: 0; align-self: flex-start; }
-        .mic-active { color: rgb(239 68 68) !important; background: rgb(239 68 68 / 0.1); border-color: rgb(239 68 68 / 0.3) !important; }
-    </style>
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body class="flex h-[100dvh] overflow-hidden selection:bg-accent selection:text-accentInv">
     
-    <!-- Splash Screen -->
     <div id="splash-screen" class="fixed inset-0 z-[100] bg-base flex flex-col items-center justify-center transition-all duration-700">
         <div class="relative flex flex-col items-center justify-center">
             <div class="absolute inset-0 bg-blue-500 blur-[50px] opacity-20 rounded-full w-32 h-32 scale-150 animate-pulse-slow"></div>
@@ -126,7 +70,6 @@
 
     <div class="ambient-glow"></div>
 
-    <!-- Desktop Sidebar -->
     <nav class="hidden md:flex flex-col w-[260px] h-[100dvh] bg-surface border-r border-borderline/5 z-40 shrink-0 relative">
         <div class="flex items-center gap-3 px-8 pt-8 mb-10">
             <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-[0_4px_14px_rgba(0,0,0,0.25)] overflow-hidden border border-borderline/10 bg-black">
@@ -136,21 +79,17 @@
         </div>
         <div class="flex flex-col gap-1.5 px-4 w-full" id="nav-desktop">
             <button onclick="switchView('workspace')" id="nav-btn-workspace" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl bg-elevated/50 text-accent font-semibold text-sm border border-borderline/5 shadow-inner-light transition-all">
-                <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                Environments
+                <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg> Environments
             </button>
             <button onclick="switchView('agent')" id="nav-btn-agent" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl text-muted hover:text-accent hover:bg-elevated/30 font-medium text-sm transition-all border border-transparent">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                Command Center
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Command Center
             </button>
             <button onclick="switchView('settings')" id="nav-btn-settings" class="nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl text-muted hover:text-accent hover:bg-elevated/30 font-medium text-sm transition-all border border-transparent">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Preferences
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Preferences
             </button>
         </div>
     </nav>
 
-    <!-- Mobile Floating Dock (Z-index 40 ensures it floats above content) -->
     <nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface/90 backdrop-blur-xl border border-borderline/10 z-40 flex items-center justify-between px-1.5 py-1.5 rounded-[2rem] shadow-float w-[90%] max-w-sm">
         <button onclick="switchView('workspace')" id="mob-nav-btn-workspace" class="mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full bg-elevated/80 text-accent transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
@@ -159,15 +98,13 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
         </button>
         <button onclick="openCreator()" class="bg-accent text-accentInv flex items-center justify-center gap-1.5 px-5 py-3 rounded-full font-bold text-sm shadow-[0_4px_14px_rgba(255,255,255,0.2)] active:scale-95 transition-transform shrink-0 mx-1">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>
-            Deploy
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg> Deploy
         </button>
         <button onclick="switchView('settings')" id="mob-nav-btn-settings" class="mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full text-muted hover:text-accent transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
         </button>
     </nav>
 
-    <!-- Main Workspace View -->
     <main id="view-workspace" class="flex-1 flex flex-col h-[100dvh] overflow-hidden relative z-10">
         <header class="bg-base/60 backdrop-blur-2xl border-b border-borderline/5 px-6 md:px-10 py-5 md:py-6 flex flex-col md:flex-row justify-between md:items-center gap-4 shrink-0 z-20">
             <div>
@@ -183,8 +120,7 @@
                     </button>
                 </div>
                 <button onclick="openCreator()" class="hidden md:flex bg-accent text-accentInv px-6 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-all items-center gap-2 active:scale-95 shadow-[0_4px_14px_rgba(255,255,255,0.15)] shrink-0">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
-                    Deploy Config
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg> Deploy Config
                 </button>
             </div>
         </header>
@@ -201,9 +137,6 @@
         </div>
     </main>
 
-    <!-- 🤖 COMMAND CENTER VIEW -->
-    <main id="view-agent" class="hidden flex-1 flex-col h-[100dvh] overflow-hidden relative z-10 bg-base">
-        <!-- Header -->
     <main id="view-agent" class="hidden flex-1 flex-col h-[100dvh] overflow-hidden relative z-10 bg-base">
         <header class="bg-surface/80 backdrop-blur-xl border-b border-borderline/5 px-6 md:px-10 py-4 md:py-6 shrink-0 z-20 shadow-sm flex justify-between items-center">
             <div>
@@ -227,8 +160,6 @@
             </div>
         </header>
 
-
-        <!-- Chat History -->
         <div class="flex-1 overflow-y-auto hide-scroll p-4 md:p-8 flex flex-col gap-4 w-full" id="chat-box">
             <div class="max-w-4xl mx-auto w-full flex flex-col gap-4" id="chat-content-wrapper">
                 <div class="chat-bubble-agent p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up">
@@ -237,26 +168,14 @@
             </div>
         </div>
 
-        <!-- Input Area (pb-32 completely clears the mobile floating dock) -->
         <div class="bg-surface/80 backdrop-blur-xl border-t border-borderline/5 p-4 pb-32 md:pb-8 shrink-0 z-30 relative w-full">
             <form id="chat-form" class="max-w-4xl mx-auto relative flex items-center w-full">
                 <button type="button" id="mic-btn" class="absolute left-3 text-muted hover:text-accent transition-colors p-2 rounded-full border border-transparent z-10" title="Tap to speak">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                 </button>
                 
-                <input 
-                    type="text" 
-                    id="message-input" 
-                    class="w-full input-elite pl-12 pr-24 md:pr-28 py-4 text-sm outline-none placeholder:text-muted/50" 
-                    placeholder="Ask agent..." 
-                    autocomplete="off"
-                    required
-                >
-                <button 
-                    type="submit" 
-                    id="send-btn"
-                    class="absolute right-2 bg-accent text-accentInv hover:opacity-90 font-bold rounded-lg text-xs px-4 md:px-5 py-2.5 transition-all active:scale-95 shadow-[0_2px_10px_rgba(255,255,255,0.1)] flex items-center gap-2"
-                >
+                <input type="text" id="message-input" class="w-full input-elite pl-12 pr-24 md:pr-28 py-4 text-sm outline-none placeholder:text-muted/50" placeholder="Ask agent..." autocomplete="off" required>
+                <button type="submit" id="send-btn" class="absolute right-2 bg-accent text-accentInv hover:opacity-90 font-bold rounded-lg text-xs px-4 md:px-5 py-2.5 transition-all active:scale-95 shadow-[0_2px_10px_rgba(255,255,255,0.1)] flex items-center gap-2">
                     <span class="hidden md:inline">SEND</span>
                     <svg class="w-4 h-4 md:w-3 md:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                 </button>
@@ -264,7 +183,6 @@
         </div>
     </main>
 
-    <!-- Settings View -->
     <main id="view-settings" class="hidden flex-1 flex-col h-[100dvh] overflow-hidden relative z-10">
         <header class="bg-base/60 backdrop-blur-2xl border-b border-borderline/5 px-6 md:px-10 py-5 md:py-8 shrink-0 z-20">
             <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Preferences</h1>
@@ -297,7 +215,6 @@
         </div>
     </main>
 
-    <!-- Creator Modal Overlay -->
     <div id="creator-backdrop" class="fixed inset-0 bg-base/80 z-50 flex items-end md:items-center justify-center modal-overlay p-0 md:p-6" onclick="handleBackdropClick(event)">
         <div class="glass-card w-full h-[90dvh] md:h-auto md:max-h-[90vh] md:max-w-[720px] flex flex-col modal-content rounded-t-[32px] md:rounded-[24px] border-b-0 md:border-b bg-surface shadow-float" onclick="event.stopPropagation()">
             
@@ -308,8 +225,7 @@
                 <h2 class="text-lg font-bold tracking-tight flex items-center gap-2" id="creator-title">
                     <div class="w-5 h-5 rounded-full overflow-hidden bg-black shadow-[0_0_8px_rgba(59,130,246,0.8)] border border-white/20 animate-pulse">
                         <img src="./icon-512.png" class="w-full h-full object-cover logo-invert" alt="Logo" onerror="this.style.display='none'">
-                    </div> 
-                    Establish Setup
+                    </div> Establish Setup
                 </h2>
                 <div class="flex items-center gap-3">
                     <span class="hidden md:inline text-[10px] text-muted font-bold tracking-widest uppercase border border-borderline/10 px-2 py-1 rounded">ESC TO CANCEL</span>
@@ -319,7 +235,6 @@
                 </div>
             </div>
 
-            <!-- Step 1: Base Info -->
             <div id="step-1" class="p-6 md:p-8 overflow-y-auto hide-scroll flex-grow">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
                     <div>
@@ -332,14 +247,12 @@
                     </div>
                 </div>
 
-                <!-- GitHub Integration Section -->
                 <div class="mb-6">
                     <label class="block text-[11px] font-bold text-muted mb-2 uppercase tracking-widest">GitHub Integration</label>
                     <div class="flex items-center bg-base border border-borderline/10 shadow-inner-input rounded-xl overflow-hidden focus-within:border-accent/30 transition-all mb-3">
                         <span class="px-4 py-3.5 text-muted text-sm font-mono border-r border-borderline/10 bg-elevated/30 select-none hidden md:block">github.com/</span>
                         <input type="text" id="proj-gh" placeholder="username/repository" autocomplete="off" class="bg-transparent border-none px-4 py-3.5 text-sm text-accent w-full outline-none font-mono">
                     </div>
-                    <!-- Native Toggle for GitHub Pages -->
                     <label class="flex items-center justify-between cursor-pointer group mb-3 px-1">
                         <span class="text-xs font-semibold text-muted group-hover:text-accent transition-colors">Auto-link GitHub Pages</span>
                         <div class="relative">
@@ -371,7 +284,6 @@
                 </button>
             </div>
 
-            <!-- Step 2: Categorization -->
             <div id="step-2" class="p-0 overflow-hidden flex-col hidden h-full">
                 <div class="px-6 md:px-8 py-4 bg-surface border-b border-borderline/10 flex justify-between items-center shrink-0">
                     <span class="text-sm font-bold tracking-tight">Review Mapping</span>
@@ -391,748 +303,12 @@
         </div>
     </div>
 
-    <!-- Toast Notification -->
     <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 md:top-auto md:left-auto md:bottom-8 md:right-8 bg-surface border border-borderline/10 text-accent px-5 py-3.5 rounded-2xl shadow-float flex items-center gap-3 transform -translate-y-20 md:translate-y-20 opacity-0 pointer-events-none transition-all duration-300 z-[70] min-w-[200px] shadow-inner-light">
         <div id="toast-icon" class="w-5 h-5 shrink-0 rounded-full flex items-center justify-center border"></div>
         <span id="toast-msg" class="text-sm font-bold tracking-tight"></span>
     </div>
 
-    <script>
-        // --- Core Engine & Type-Safe State ---
-        let projects = JSON.parse(localStorage.getItem('rashboard_v13')) || [];
-        let tempParsedVars = []; 
-        let editingProjectId = null;
-        let activeTabs = JSON.parse(localStorage.getItem('rashboard_tabs')) || {}; 
-        let expandedCards = new Set(JSON.parse(localStorage.getItem('rashboard_expanded') || '[]'));
-        let searchTerm = '';
+    <script src="./script.js"></script>
 
-        const DEFAULT_CATEGORIES = ['General', 'Database', 'Backend', 'Storage', 'AppScript', 'Frontend', 'Auth'];
-        
-        const SERVICES = [
-            { name: 'Supabase', regex: /https:\/\/([a-z0-9]+)\.supabase\.co/i, getUrl: m => `https://supabase.com/dashboard/project/${m[1]}`, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
-            { name: 'Render', regex: /\.onrender\.com/i, getUrl: () => `https://dashboard.render.com/`, color: 'text-purple-500 bg-purple-500/10 border-purple-500/20' },
-            { name: 'Neon', regex: /\.neon\.tech/i, getUrl: () => `https://console.neon.tech/`, color: 'text-teal-500 bg-teal-500/10 border-teal-500/20' },
-            { name: 'Clerk', regex: /clerk\./i, getUrl: () => `https://dashboard.clerk.com/`, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
-            { name: 'Stripe', regex: /sk_live|pk_live|sk_test|pk_test/i, getUrl: () => `https://dashboard.stripe.com/`, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
-            { name: 'Vercel', regex: /\.vercel\.app/i, getUrl: () => `https://vercel.com/dashboard`, color: 'text-accent bg-elevated border-borderline/20' }
-        ];
-
-        // --- THE BOOT SEQUENCE & SPLASH SCREEN FIX ---
-        window.onload = () => {
-            init(); // Boots up the app logic
-            switchView('workspace'); // Sets the initial UI view
-            
-            // Wait 1.4 seconds, then fade out the splash screen
-            setTimeout(() => {
-                const splash = document.getElementById('splash-screen');
-                if(splash) {
-                    splash.style.opacity = '0';
-                    splash.style.pointerEvents = 'none';
-                    // Remove from DOM flow after fade
-                    setTimeout(() => splash.style.display = 'none', 700);
-                }
-            }, 1400); 
-        };
-
-        // --- DYNAMIC BACKGROUND SYNC ---
-        async function syncToBackend() {
-            try {
-                await fetch('http://localhost:3000/api/sync', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        projects: JSON.parse(localStorage.getItem('rashboard_v13') || '[]') 
-                    })
-                });
-                console.log("Vault synced with Backend Agent");
-            } catch(e) {
-                console.error("Failed to sync with backend", e);
-            }
-        }
-// --- 📜 PERSISTENT CHAT HISTORY LOGIC ---
-async function loadChatHistory() {
-    try {
-        const res = await fetch('/api/history');
-        const data = await res.json();
-        
-        if (data.history && data.history.length > 0) {
-            const wrapper = document.getElementById('chat-content-wrapper');
-            wrapper.innerHTML = ''; // Clears the default "System initialized" message
-            
-            data.history.forEach(msg => {
-                const isUser = msg.role === 'user';
-                const div = document.createElement('div');
-                div.className = `p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light leading-relaxed animate-slide-up ${isUser ? 'chat-bubble-user' : 'chat-bubble-agent'}`;
-                // Apply simple markdown bolding
-                div.innerHTML = msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                wrapper.appendChild(div);
-            });
-
-            // Scroll to the bottom instantly
-            const chatBox = document.getElementById('chat-box');
-            setTimeout(() => chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }), 100);
-        }
-    } catch(e) {
-        console.error("No history found.");
-    }
-}
-
-async function clearChat() {
-    if(confirm("Wipe all AI chat history? This cannot be undone.")) {
-        try {
-            await fetch('/api/history', { method: 'DELETE' });
-            
-            // Instantly wipe the UI and show a reset message
-            const wrapper = document.getElementById('chat-content-wrapper');
-            wrapper.innerHTML = `
-                <div class="chat-bubble-agent p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up">
-                    <p>System memory wiped. Ready for new commands.</p>
-                </div>`;
-            
-            showToast("Chat history cleared", "success");
-        } catch(e) {
-            showToast("Failed to clear history", "error");
-        }
-    }
-}
-
-// --- APP INITIALIZATION ---
-function init() {
-    // ... existing migration code ...
-    if (projects.length === 0 && localStorage.getItem('rashboard_v12')) {
-        projects = JSON.parse(localStorage.getItem('rashboard_v12'));
-        localStorage.setItem('rashboard_v13', JSON.stringify(projects));
-    }
-    
-    projects.forEach(p => { const keys = Object.keys(p.tabs || {}); if(keys.length && !activeTabs[p.id]) activeTabs[p.id] = keys[0]; });
-    saveStateMeta();
-    setupKeyboardShortcuts();
-    renderProjects();
-    pingAll();
-    
-    syncToBackend(); 
-    loadChatHistory(); // <--- THIS AUTO-LOADS THE CHAT WHEN YOU OPEN THE APP
-    
-    setInterval(syncToBackend, 10000);
-    setInterval(pingAll, 30000);
-}
-
-        function init() {
-            // Data Migration for the new ghPages field
-            if (projects.length === 0 && localStorage.getItem('rashboard_v12')) {
-                projects = JSON.parse(localStorage.getItem('rashboard_v12'));
-                localStorage.setItem('rashboard_v13', JSON.stringify(projects));
-            }
-            
-            projects.forEach(p => { const keys = Object.keys(p.tabs || {}); if(keys.length && !activeTabs[p.id]) activeTabs[p.id] = keys[0]; });
-            saveStateMeta();
-            setupKeyboardShortcuts();
-            renderProjects();
-            pingAll();
-            
-            // Sync to backend immediately on boot, and then every 10 seconds
-            syncToBackend();
-            setInterval(syncToBackend, 10000);
-            setInterval(pingAll, 30000);
-        }
-
-        function saveStateMeta() {
-            localStorage.setItem('rashboard_tabs', JSON.stringify(activeTabs));
-            localStorage.setItem('rashboard_expanded', JSON.stringify(Array.from(expandedCards)));
-        }
-
-        function setupKeyboardShortcuts() {
-            document.addEventListener('keydown', (e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                    e.preventDefault();
-                    if(document.getElementById('view-workspace').style.display !== 'none') {
-                        document.getElementById('global-search').focus();
-                    }
-                }
-                if (e.key === 'Escape') {
-                    closeCreator();
-                    const searchInput = document.getElementById('global-search');
-                    if (document.activeElement === searchInput) {
-                        searchInput.blur();
-                        clearSearch();
-                    }
-                }
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                    const modal = document.getElementById('creator-backdrop');
-                    if (modal.classList.contains('active')) {
-                        if (!document.getElementById('step-2').classList.contains('hidden')) saveProject();
-                        else processEnv();
-                    }
-                }
-            });
-        }
-
-        // --- Navigation ---
-        function switchView(view) {
-            document.getElementById('view-workspace').style.display = view === 'workspace' ? 'flex' : 'none';
-            document.getElementById('view-agent').style.display = view === 'agent' ? 'flex' : 'none';
-            document.getElementById('view-settings').style.display = view === 'settings' ? 'flex' : 'none';
-            
-            document.getElementById('nav-btn-workspace').className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${view === 'workspace' ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
-            document.getElementById('nav-btn-agent').className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${view === 'agent' ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
-            document.getElementById('nav-btn-settings').className = `nav-btn flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all ${view === 'settings' ? 'bg-elevated/50 text-accent border border-borderline/5 shadow-inner-light' : 'text-muted hover:text-accent hover:bg-elevated/30 border border-transparent'}`;
-            
-            document.getElementById('mob-nav-btn-workspace').className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${view === 'workspace' ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
-            document.getElementById('mob-nav-btn-agent').className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${view === 'agent' ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
-            document.getElementById('mob-nav-btn-settings').className = `mob-nav-btn flex items-center justify-center w-12 h-12 rounded-full transition-colors ${view === 'settings' ? 'bg-elevated/80 text-accent' : 'text-muted hover:text-accent'}`;
-        }
-
-        // --- Search ---
-        function handleSearch(val) {
-            searchTerm = val.toLowerCase().trim();
-            const clearBtn = document.getElementById('clear-search');
-            if (searchTerm) clearBtn.classList.remove('hidden');
-            else clearBtn.classList.add('hidden');
-            renderProjects();
-        }
-
-        function clearSearch() { document.getElementById('global-search').value = ''; handleSearch(''); }
-
-        function toggleGhPagesInput(isChecked) {
-            const container = document.getElementById('gh-pages-custom-container');
-            if(isChecked) container.classList.add('hidden');
-            else container.classList.remove('hidden');
-        }
-
-        // --- HTML Generators ---
-        function generateVaultHtml(project, tabName) {
-            const safeTabs = project.tabs || {};
-            const configs = safeTabs[tabName] || [];
-            if (configs.length === 0) return '<div class="py-10 text-center text-xs font-medium text-muted">No variable mapping in this category.</div>';
-            
-            const rows = configs.map(conf => {
-                const sKey = conf.key || '';
-                const sVal = conf.value || '';
-                const masked = sVal.replace(/./g, '•');
-                return `
-                <div class="flex justify-between items-center py-3 border-b border-borderline/10 last:border-0 group cursor-pointer transition-colors hover:bg-borderline/5 px-2 -mx-2 rounded-lg" onclick="copyText('${sVal.replace(/'/g, "\\'")}', '${sKey.replace(/'/g, "\\'")}')">
-                    <span class="text-[13px] font-bold text-accent w-[40%] truncate pr-2">${sKey}</span>
-                    <div class="flex items-center gap-2 max-w-[55%] justify-end">
-                        <span class="text-[11px] font-mono text-muted truncate group-hover:text-accent transition-colors">${masked}</span>
-                        <svg class="w-3.5 h-3.5 text-accent opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                    </div>
-                </div>`;
-            });
-            return rows.join('');
-        }
-
-        function generateTabsHtml(project, currentTab) {
-            const tabNames = Object.keys(project.tabs || {});
-            if (tabNames.length === 0) return '';
-            
-            const tabButtons = tabNames.map(tab => {
-                const count = Array.isArray(project.tabs[tab]) ? project.tabs[tab].length : 0;
-                const isActive = currentTab === tab ? 'active' : '';
-                return `
-                <button onclick="switchTab('${project.id}', '${tab}')" data-tab="${tab}" class="tab-btn px-4 py-3.5 text-[13px] elite-tab ${isActive} whitespace-nowrap flex items-center gap-1.5 transition-all">
-                    ${tab} <span class="text-[9px] bg-borderline/10 px-1.5 py-0.5 rounded text-muted font-bold">${count}</span>
-                </button>`;
-            });
-            
-            return `
-            <div class="flex justify-between items-center border-b border-borderline/10 pr-2">
-                <div class="flex overflow-x-auto hide-scroll px-2" id="tabs-container-${project.id}">${tabButtons.join('')}</div>
-                <button onclick="copyProjectEnv('${project.id}')" class="shrink-0 text-[11px] font-bold text-muted hover:text-accent bg-elevated px-3 py-1.5 rounded-lg border border-borderline/10 shadow-inner-light flex items-center gap-1.5 transition-colors" title="Copy full raw .env payload">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> COPY ALL
-                </button>
-            </div>`;
-        }
-
-        // --- Main Renderer ---
-        function renderProjects() {
-            const grid = document.getElementById('project-grid');
-            const emptyState = document.getElementById('empty-state');
-
-            const filteredProjects = projects.filter(p => {
-                if (!searchTerm) return true;
-                const matchName = (p.name || '').toLowerCase().includes(searchTerm);
-                const matchVars = Object.values(p.tabs || {}).flat().some(v => (v.key || '').toLowerCase().includes(searchTerm) || (v.value || '').toLowerCase().includes(searchTerm));
-                return matchName || matchVars;
-            });
-
-            if (filteredProjects.length === 0) {
-                grid.innerHTML = '';
-                emptyState.classList.remove('hidden'); emptyState.classList.add('flex');
-                document.getElementById('empty-title').innerText = searchTerm ? "No Matches" : "Empty Workspace";
-                document.getElementById('empty-desc').innerText = searchTerm ? "No projects or environment variables match your search criteria." : "Map your .env files to visualize and monitor your entire stack.";
-                return;
-            }
-            
-            emptyState.classList.add('hidden'); emptyState.classList.remove('flex');
-            
-            const cardsHtml = filteredProjects.map((project, index) => {
-                const safeTabs = project.tabs || {};
-                const allConfigs = Object.values(safeTabs).flat();
-                const smartPortals = detectServices(allConfigs);
-                let dockButtons = [];
-                
-                if (project.liveUrl) dockButtons.push(`<a href="${project.liveUrl}" target="_blank" class="dock-pill border-blue-500/30 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> LIVE APP</a>`);
-                
-                if (project.ghRepo) {
-                    let repoPath = project.ghRepo.replace(/^https?:\/\/(www\.)?github\.com\//i, '').replace(/^\/+|\/+$/g, '');
-                    if (!repoPath.includes('/')) repoPath = `ravjit-singh/${repoPath}`;
-                    const rName = repoPath.split('/').pop() || repoPath;
-                    
-                    dockButtons.push(`
-                        <a href="https://github.com/${repoPath}" target="_blank" class="dock-pill border-borderline/20 bg-elevated text-accent hover:bg-borderline/10"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg> REPO</a>
-                    `);
-                    let pagesLink = project.autoPages !== false ? `https://ravjit-singh.github.io/${rName}` : project.ghPagesUrl;
-                    if (pagesLink) dockButtons.push(`<a href="${pagesLink}" target="_blank" class="dock-pill border-amber-500/30 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20">PAGES ↗</a>`);
-                }
-
-                smartPortals.forEach(p => dockButtons.push(`<a href="${p.url}" target="_blank" class="dock-pill ${p.color}">${p.name}</a>`));
-                const dockHtml = dockButtons.length > 0 ? `<div class="flex flex-wrap gap-2 mt-5 pb-1">${dockButtons.join('')}</div>` : '';
-
-                const isExpanded = expandedCards.has(project.id) || searchTerm !== ''; 
-                const currentActiveTab = activeTabs[project.id];
-                
-                const tabsHtml = generateTabsHtml(project, currentActiveTab);
-                const vaultHtml = generateVaultHtml(project, currentActiveTab);
-                const staggerDelay = index * 0.05;
-
-                return `
-                <div id="card-${project.id}" class="glass-card flex flex-col w-full animate-slide-up" style="animation-delay: ${staggerDelay}s">
-                    <div class="p-5 md:p-7 pb-5">
-                        <div class="flex justify-between items-start">
-                            <div class="max-w-[75%]">
-                                <h3 class="text-xl md:text-2xl font-bold tracking-tight truncate">${project.name || 'Unnamed'}</h3>
-                                <button onclick="forcePing('${project.id}')" id="status-${project.id}" class="flex items-center gap-1.5 mt-1 hover:opacity-70 transition-opacity cursor-pointer group/ping" title="Click to force ping">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-muted"></span>
-                                    <span class="text-[9px] text-muted font-bold tracking-widest uppercase group-hover/ping:text-accent transition-colors">STANDBY</span>
-                                </button>
-                            </div>
-                            <div class="flex gap-2 shrink-0">
-                                <button onclick="editProject('${project.id}')" class="w-9 h-9 rounded-full bg-surface border border-borderline/10 flex items-center justify-center text-muted hover:text-accent hover:border-borderline/30 transition-all shadow-inner-light" title="Configure">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                                </button>
-                                <button onclick="deleteProject('${project.id}')" class="w-9 h-9 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 hover:bg-red-500/20 transition-all shadow-inner-light" title="Delete">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                </button>
-                            </div>
-                        </div>
-                        ${dockHtml}
-                    </div>
-                    
-                    <button onclick="toggleExpand('${project.id}')" class="w-full px-6 md:px-7 py-4 border-t border-borderline/5 flex justify-between items-center text-xs font-bold text-muted hover:text-accent hover:bg-elevated/30 transition-colors rounded-b-[20px]">
-                        <span>Secure Environment Vault <span class="bg-borderline/10 text-[9px] px-2 py-0.5 rounded ml-1 text-accent shadow-inner-light">${allConfigs.length}</span></span>
-                        <svg id="icon-${project.id}" class="w-4 h-4 transform transition-transform duration-400 ${isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-
-                    <div id="wrapper-${project.id}" class="expandable-wrapper ${isExpanded ? 'expanded' : ''} bg-base rounded-b-[20px] border-t border-borderline/0 transition-all ${isExpanded ? 'border-borderline/10' : ''}">
-                        <div class="expandable-inner flex flex-col" id="content-area-${project.id}">
-                            ${tabsHtml}
-                            <div class="px-5 py-3 flex-grow vault-content-container" id="vault-${project.id}">${vaultHtml}</div>
-                        </div>
-                    </div>
-                </div>`;
-            });
-            grid.innerHTML = cardsHtml.join('');
-            
-            if(!searchTerm) pingAll();
-        }
-
-        function switchTab(projectId, tabName) { 
-            activeTabs[projectId] = tabName; 
-            saveStateMeta();
-            
-            const project = projects.find(p => p.id === projectId);
-            if(!project) return;
-
-            const tabsContainer = document.getElementById(`tabs-container-${projectId}`);
-            if(tabsContainer) {
-                Array.from(tabsContainer.children).forEach(btn => {
-                    if(btn.dataset.tab === tabName) btn.classList.add('active');
-                    else btn.classList.remove('active');
-                });
-            }
-
-            const vault = document.getElementById(`vault-${projectId}`);
-            if(vault) {
-                vault.style.opacity = '0';
-                setTimeout(() => {
-                    vault.innerHTML = generateVaultHtml(project, tabName);
-                    vault.style.opacity = '1';
-                }, 200);
-            }
-
-            if(!expandedCards.has(projectId)) toggleExpand(projectId);
-        }
-
-        function toggleExpand(projectId) {
-            const wrapper = document.getElementById(`wrapper-${projectId}`);
-            const icon = document.getElementById(`icon-${projectId}`);
-            if(!wrapper) return;
-
-            if (expandedCards.has(projectId)) {
-                expandedCards.delete(projectId);
-                wrapper.classList.remove('expanded');
-                wrapper.classList.remove('border-borderline/10');
-                if(icon) icon.classList.remove('rotate-180');
-            } else {
-                expandedCards.add(projectId);
-                wrapper.classList.add('expanded');
-                wrapper.classList.add('border-borderline/10');
-                if(icon) icon.classList.add('rotate-180');
-            }
-            saveStateMeta();
-        }
-
-        function copyProjectEnv(id) {
-            const p = projects.find(x => x.id === id); if (!p) return;
-            let raw = ""; 
-            for (const t in (p.tabs || {})) (p.tabs[t] || []).forEach(v => { if(v.key) raw += `${v.key}=${v.value}\n`; });
-            navigator.clipboard.writeText(raw.trim()).then(() => showToast(`Full raw payload securely copied`, "success"));
-        }
-
-        // --- File Uploader ---
-        function handleDragOver(e) { e.preventDefault(); document.getElementById('dropzone').classList.add('dragover'); }
-        function handleDragLeave(e) { e.preventDefault(); document.getElementById('dropzone').classList.remove('dragover'); }
-        function handleDrop(e) { e.preventDefault(); document.getElementById('dropzone').classList.remove('dragover'); processFile(e.dataTransfer.files[0]); }
-        function handleFileInput(e) { processFile(e.target.files[0]); e.target.value = ""; }
-
-        function processFile(file) {
-            if (!file) return;
-            if (!file.name.includes('.env') && !file.name.match(/^\.env/)) return showToast("Only .env formats accepted", "error");
-            const reader = new FileReader();
-            reader.onload = e => {
-                const ta = document.getElementById('env-input');
-                ta.value = ta.value ? ta.value + '\n' + e.target.result : e.target.result;
-                showToast(`Extracted ${file.name} successfully`, "success");
-            };
-            reader.readAsText(file);
-        }
-
-        // --- Modal Workflow ---
-        function openCreator() {
-            editingProjectId = null;
-            document.getElementById('creator-title').innerHTML = `
-                <div class="w-5 h-5 rounded-full overflow-hidden bg-black shadow-[0_0_8px_rgba(59,130,246,0.8)] border border-white/20 animate-pulse">
-                    <img src="./icon-512.png" class="w-full h-full object-cover logo-invert" alt="Logo" onerror="this.style.display='none'">
-                </div> 
-                Establish Setup`;
-            document.getElementById('proj-name').value = ''; document.getElementById('proj-live-url').value = ''; 
-            document.getElementById('proj-gh').value = ''; document.getElementById('env-input').value = '';
-            document.getElementById('gh-pages-toggle').checked = true;
-            document.getElementById('proj-gh-pages').value = '';
-            toggleGhPagesInput(true);
-
-            showModalStep(1);
-            setTimeout(() => document.getElementById('proj-name').focus(), 300);
-        }
-
-        function editProject(id) {
-            const p = projects.find(x => x.id === id); if (!p) return;
-            editingProjectId = id;
-            document.getElementById('creator-title').innerHTML = `
-                <div class="w-5 h-5 rounded-full overflow-hidden bg-black shadow-[0_0_8px_rgba(59,130,246,0.8)] border border-white/20">
-                    <img src="./icon-512.png" class="w-full h-full object-cover logo-invert" alt="Logo" onerror="this.style.display='none'">
-                </div> 
-                Modify Architecture`;
-            document.getElementById('proj-name').value = p.name || ''; 
-            document.getElementById('proj-live-url').value = p.liveUrl || ''; 
-            document.getElementById('proj-gh').value = p.ghRepo || '';
-            
-            const isAuto = p.autoPages !== false; 
-            document.getElementById('gh-pages-toggle').checked = isAuto;
-            document.getElementById('proj-gh-pages').value = p.ghPagesUrl || '';
-            toggleGhPagesInput(isAuto);
-
-            let raw = ""; for (const t in (p.tabs || {})) (p.tabs[t] || []).forEach(v => { if(v.key) raw += `${v.key}=${v.value}\n`; });
-            document.getElementById('env-input').value = raw.trim();
-            showModalStep(1);
-        }
-
-        function handleBackdropClick(e) { if(e.target === e.currentTarget) closeCreator(); }
-        
-        function showModalStep(step) {
-            document.getElementById('creator-backdrop').classList.add('active');
-            if (step === 1) { 
-                document.getElementById('step-1').classList.remove('hidden'); 
-                document.getElementById('step-2').classList.add('hidden'); document.getElementById('step-2').classList.remove('flex'); 
-            } else { 
-                document.getElementById('step-1').classList.add('hidden'); 
-                document.getElementById('step-2').classList.remove('hidden'); document.getElementById('step-2').classList.add('flex'); 
-            }
-        }
-
-        function closeCreator() { document.getElementById('creator-backdrop').classList.remove('active'); tempParsedVars = []; }
-        function backToStep1() { showModalStep(1); }
-
-        function processEnv() {
-            const n = document.getElementById('proj-name').value.trim(), e = document.getElementById('env-input').value;
-            if (!n) return showToast('Project Identity is required', 'error');
-            
-            tempParsedVars = [];
-            if (e.trim()) {
-                tempParsedVars = e.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')).map((line, idx) => {
-                    const eq = line.indexOf('='); if(eq === -1) return null;
-                    const key = line.substring(0, eq).trim(), value = line.substring(eq + 1).trim().replace(/^["']|["']$/g, '');
-                    let tab = 'General'; const k = key.toUpperCase();
-                    if (k.includes('DB') || k.includes('DATABASE') || k.includes('POSTGRES')) tab = 'Database';
-                    else if (k.includes('AWS') || k.includes('S3') || k.includes('BUCKET')) tab = 'Storage';
-                    else if (k.includes('API') || k.includes('SECRET') || k.includes('CLERK') || k.includes('STRIPE')) tab = 'Backend';
-                    else if (k.includes('NEXT_PUBLIC') || k.includes('VITE') || k.includes('REACT')) tab = 'Frontend';
-                    return { id: idx, key, value, tab };
-                }).filter(Boolean);
-            }
-            showModalStep(2); renderCategorizationStep();
-        }
-
-        function renderCategorizationStep() {
-            const list = document.getElementById('parsed-vars-list');
-            if (!tempParsedVars.length) { list.innerHTML = `<div class="text-center py-10 text-muted text-sm border border-dashed border-borderline/20 rounded-xl bg-base">No variables extracted. Setup is currently blank.</div>`; return; }
-
-            const htmlArray = tempParsedVars.map((v, i) => `
-                <div class="flex flex-col md:flex-row gap-3 items-start md:items-center bg-elevated/50 p-4 rounded-xl border border-borderline/10 shadow-inner-light">
-                    <div class="flex-grow w-full md:w-auto flex flex-col gap-1.5">
-                        <input type="text" value="${v.key || ''}" onchange="updateTempVar(${i}, 'key', this.value)" class="w-full bg-transparent border-b border-borderline/10 px-1 py-1 text-sm font-bold text-accent outline-none focus:border-accent transition-colors" placeholder="KEY">
-                        <input type="text" value="${v.value || ''}" onchange="updateTempVar(${i}, 'value', this.value)" class="w-full bg-transparent border-b border-borderline/10 px-1 py-1 text-[11px] font-mono text-muted outline-none focus:border-accent transition-colors" placeholder="VALUE">
-                    </div>
-                    <div class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 shrink-0">
-                        <select onchange="updateTempVar(${i}, 'tab', this.value)" class="flex-1 md:w-36 bg-surface border border-borderline/10 text-xs text-accent font-semibold rounded-lg px-2 py-2 outline-none shadow-inner-light focus:border-accent">
-                            ${DEFAULT_CATEGORIES.map(cat => `<option value="${cat}" ${v.tab === cat ? 'selected' : ''}>${cat}</option>`).join('')}
-                            <option value="NEW">+ Custom...</option>
-                        </select>
-                        <button onclick="removeTempVar(${i})" class="w-9 h-9 rounded-lg bg-surface border border-borderline/10 flex items-center justify-center text-muted hover:text-red-500 hover:border-red-500/30 transition-all shrink-0 shadow-inner-light">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                    </div>
-                </div>
-            `);
-            list.innerHTML = htmlArray.join('');
-        }
-
-        function addNewRow() { tempParsedVars.push({ key: '', value: '', tab: 'General' }); renderCategorizationStep(); document.getElementById('parsed-vars-list').scrollTop = 9999; }
-        function removeTempVar(index) { tempParsedVars.splice(index, 1); renderCategorizationStep(); }
-        function updateTempVar(index, field, val) {
-            if (field === 'tab' && val === 'NEW') {
-                const c = prompt("Assign new custom category:");
-                if (c && c.trim()) { if (!DEFAULT_CATEGORIES.includes(c.trim())) DEFAULT_CATEGORIES.push(c.trim()); tempParsedVars[index].tab = c.trim(); } 
-                else tempParsedVars[index].tab = 'General';
-                renderCategorizationStep(); return;
-            }
-            tempParsedVars[index][field] = val;
-        }
-
-        function saveProject() {
-            const n = document.getElementById('proj-name').value.trim();
-            const l = document.getElementById('proj-live-url').value.trim();
-            const g = document.getElementById('proj-gh').value.trim();
-            const autoP = document.getElementById('gh-pages-toggle').checked;
-            const cP = document.getElementById('proj-gh-pages').value.trim();
-
-            const grp = {}; tempParsedVars.filter(v => v.key || v.value).forEach(v => { const t = v.tab || 'General'; if (!grp[t]) grp[t] = []; grp[t].push({ key: v.key, value: v.value }); });
-
-            if (editingProjectId) {
-                const i = projects.findIndex(p => p.id === editingProjectId);
-                if (i > -1) { 
-                    projects[i] = { ...projects[i], name: n, liveUrl: l, ghRepo: g, autoPages: autoP, ghPagesUrl: cP, tabs: grp }; 
-                    const currentActive = activeTabs[editingProjectId];
-                    if (!grp[currentActive]) activeTabs[editingProjectId] = Object.keys(grp)[0] || null; 
-                }
-            } else {
-                const id = crypto.randomUUID(); projects.unshift({ id, name: n, liveUrl: l, ghRepo: g, autoPages: autoP, ghPagesUrl: cP, tabs: grp }); activeTabs[id] = Object.keys(grp)[0] || null;
-            }
-
-            localStorage.setItem('rashboard_v13', JSON.stringify(projects)); saveStateMeta(); renderProjects(); pingAll(); 
-            syncToBackend(); // Force sync on save
-            closeCreator(); showToast("System synchronized", "success");
-        }
-
-        function deleteProject(id) { 
-            if(confirm("Confirm destructive action: Delete environment?")) { 
-                projects = projects.filter(p => p.id !== id); delete activeTabs[id]; expandedCards.delete(id);
-                localStorage.setItem('rashboard_v13', JSON.stringify(projects)); saveStateMeta(); renderProjects(); syncToBackend();
-            } 
-        }
-
-        // --- Settings & Data Backup ---
-        function exportData() {
-            if(!projects.length) return showToast("No data to export", "error");
-            const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projects, null, 2));
-            const a = document.createElement('a'); a.href = str; a.download = `rashboard-vault-${new Date().toISOString().split('T')[0]}.json`; a.click();
-            showToast("Vault exported securely", "success");
-        }
-
-        function importData(e) {
-            const f = e.target.files[0]; if (!f) return;
-            const r = new FileReader();
-            r.onload = event => {
-                try {
-                    const imp = JSON.parse(event.target.result);
-                    if (Array.isArray(imp)) {
-                        projects = imp; localStorage.setItem('rashboard_v13', JSON.stringify(projects));
-                        projects.forEach(p => { const k = Object.keys(p.tabs || {}); if(k.length) activeTabs[p.id] = k[0]; }); saveStateMeta();
-                        switchView('workspace'); renderProjects(); pingAll(); syncToBackend(); showToast("System restored", "success");
-                    } else throw new Error("Format");
-                } catch(err) { showToast("Failed reading payload", "error"); }
-            }; r.readAsText(f); e.target.value = "";
-        }
-
-        function clearAllData() {
-            if(confirm("CRITICAL WARNING: Wipe all local Rashboard data? Cannot be undone.")) {
-                projects = []; localStorage.removeItem('rashboard_v13'); renderProjects(); syncToBackend(); showToast("System wiped", "success");
-            }
-        }
-
-        // --- Network & Utilities ---
-        function detectServices(cfgs) {
-            const d = [], a = new Set(); 
-            cfgs.forEach(c => {
-                if(!c.value) return;
-                SERVICES.forEach(s => { const m = c.value.match(s.regex); if (m && !a.has(s.name)) { d.push({ name: s.name, url: s.getUrl(m), color: s.color }); a.add(s.name); } });
-            }); return d;
-        }
-
-        function copyText(t, k) { navigator.clipboard.writeText(t).then(() => showToast(`Value for ${k} secured to clipboard`, "success")); }
-
-        function showToast(msg, type = "success") {
-            const t = document.getElementById('toast'), i = document.getElementById('toast-icon'); document.getElementById('toast-msg').innerText = msg;
-            i.className = `w-5 h-5 shrink-0 rounded-full flex items-center justify-center border ${type === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-500' : 'border-blue-500/30 bg-blue-500/10 text-blue-500'}`;
-            i.innerHTML = type === 'error' ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>' : '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>';
-            
-            t.classList.remove('opacity-0', 'pointer-events-none'); t.classList.remove(window.innerWidth < 768 ? '-translate-y-20' : 'translate-y-20'); t.classList.add('translate-y-0');
-            setTimeout(() => { t.classList.add('opacity-0', 'pointer-events-none'); t.classList.remove('translate-y-0'); t.classList.add(window.innerWidth < 768 ? '-translate-y-20' : 'translate-y-20'); }, 3000);
-        }
-
-        function forcePing(id) { const p = projects.find(x => x.id === id); if(p) autoPingMainUrl(p); }
-        function pingAll() { projects.forEach(p => autoPingMainUrl(p)); }
-
-        async function autoPingMainUrl(p) {
-            const d = document.getElementById(`status-${p.id}`); if (!d) return;
-            let u = p.liveUrl; 
-            if (!u) { const safeTabs = p.tabs || {}; for (const t in safeTabs) { const f = (safeTabs[t] || []).find(c => c.value && c.value.startsWith('http')); if (f) { u = f.value; break; } } }
-            if (!u) { d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-muted"></span><span class="text-[9px] text-muted font-bold tracking-widest uppercase group-hover/ping:text-accent transition-colors">IDLE</span>`; return; }
-
-            d.innerHTML = `<span class="flex h-1.5 w-1.5 relative"><span class="animate-ping-slow absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75"></span><span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span></span><span class="text-[9px] text-blue-500 font-bold tracking-widest uppercase">PINGING</span>`;
-            const c = new AbortController(); const tId = setTimeout(() => c.abort(), 3500);
-
-            try {
-                await fetch(u, { mode: 'no-cors', signal: c.signal, cache: 'no-store' }); clearTimeout(tId);
-                d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span><span class="text-[9px] text-emerald-500 font-bold tracking-widest uppercase">ONLINE</span>`;
-            } catch (err) {
-                if (err.name === 'AbortError') { d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse"></span><span class="text-[9px] text-amber-500 font-bold tracking-widest uppercase">WAKING SERVER</span>`; setTimeout(() => autoPingMainUrl(p), 8000); } 
-                else { d.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></span><span class="text-[9px] text-red-500 font-bold tracking-widest uppercase">OFFLINE</span>`; }
-            }
-        }
-
-        // --- 🎙️ NATIVE VOICE ENGINE (STT & TTS) ---
-        let voiceResponseEnabled = false;
-        const voiceToggleBtn = document.getElementById('voice-toggle-btn');
-        const voiceIcon = document.getElementById('voice-icon');
-        const voiceStatusText = document.getElementById('voice-status-text');
-        
-        voiceToggleBtn.addEventListener('click', () => {
-            voiceResponseEnabled = !voiceResponseEnabled;
-            if (voiceResponseEnabled) {
-                voiceStatusText.textContent = "AUDIO ON";
-                voiceToggleBtn.classList.replace('text-muted', 'text-blue-400');
-                voiceIcon.classList.replace('text-muted', 'text-blue-400');
-                voiceIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.898a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>`;
-            } else {
-                voiceStatusText.textContent = "SILENT";
-                voiceToggleBtn.classList.replace('text-blue-400', 'text-muted');
-                voiceIcon.classList.replace('text-blue-400', 'text-muted');
-                window.speechSynthesis.cancel();
-                voiceIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>`;
-            }
-        });
-
-        function speakAgentText(text) {
-            if (!voiceResponseEnabled || !window.speechSynthesis) return;
-            window.speechSynthesis.cancel();
-            const cleanText = text.replace(/[*#]/g, '').replace(/_/g, ' ');
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.rate = 1.05; utterance.pitch = 1.0;
-            window.speechSynthesis.speak(utterance);
-        }
-
-        const micBtn = document.getElementById('mic-btn');
-        const messageInput = document.getElementById('message-input');
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition = null; let isListening = false;
-
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false; recognition.interimResults = false; recognition.lang = 'en-US';
-
-            recognition.onstart = () => {
-                isListening = true; micBtn.classList.add('mic-active', 'animate-pulse-fast');
-                messageInput.placeholder = "Listening..."; messageInput.disabled = true;
-            };
-
-            recognition.onresult = (event) => {
-                messageInput.value = event.results[0][0].transcript;
-                document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-            };
-
-            recognition.onerror = (event) => { console.error("Mic Error:", event.error); resetMicState(); };
-            recognition.onend = () => resetMicState();
-
-            micBtn.addEventListener('click', () => { if (isListening) recognition.stop(); else { try { recognition.start(); } catch (e) {} } });
-        } else {
-            micBtn.style.display = 'none'; messageInput.classList.remove('pl-12'); messageInput.classList.add('pl-4');
-        }
-
-        function resetMicState() {
-            isListening = false; micBtn.classList.remove('mic-active', 'animate-pulse-fast');
-            messageInput.placeholder = "Ask agent..."; messageInput.disabled = false;
-        }
-
-        // --- 🤖 Agent Chat Logic ---
-        const chatForm = document.getElementById('chat-form');
-        const chatBox = document.getElementById('chat-box');
-        const chatWrapper = document.getElementById('chat-content-wrapper');
-        const sendBtn = document.getElementById('send-btn');
-
-        function appendMessage(text, isUser) {
-            const div = document.createElement('div');
-            let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            
-            div.className = `p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up leading-relaxed ${
-                isUser ? 'chat-bubble-user' : 'chat-bubble-agent'
-            }`;
-            div.innerHTML = formattedText;
-            chatWrapper.appendChild(div);
-            
-            setTimeout(() => { chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }); }, 50);
-        }
-
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const message = messageInput.value.trim();
-            if (!message) return;
-
-            if (window.speechSynthesis) window.speechSynthesis.cancel();
-
-            appendMessage(message, true);
-            messageInput.value = '';
-            
-            sendBtn.innerHTML = `<span class="w-4 h-4 border-2 border-accentInv border-t-transparent rounded-full animate-spin"></span>`;
-            sendBtn.disabled = true;
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message })
-                });
-                const data = await response.json();
-                appendMessage(data.response, false);
-                speakAgentText(data.response);
-            } catch (error) {
-                appendMessage("System Error: Failed to reach the Core router.", false);
-            } finally {
-                sendBtn.innerHTML = `<span class="hidden md:inline">SEND</span><svg class="w-4 h-4 md:w-3 md:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>`;
-                sendBtn.disabled = false;
-                if (window.innerWidth > 768 && !isListening) messageInput.focus();
-            }
-        });
-    </script>
 </body>
 </html>

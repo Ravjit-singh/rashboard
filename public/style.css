@@ -1,0 +1,55 @@
+/* public/style.css */
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+:root {
+    --c-base: 0 0 0; --c-surface: 9 9 11; --c-elevated: 24 24 27; --c-border: 255 255 255;
+    --c-accent: 255 255 255; --c-accent-inv: 0 0 0; --c-muted: 161 161 170;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --c-base: 250 250 250; --c-surface: 255 255 255; --c-elevated: 244 244 245; --c-border: 0 0 0;
+        --c-accent: 9 9 11; --c-accent-inv: 255 255 255; --c-muted: 113 113 122;
+    }
+}
+
+body { background-color: rgb(var(--c-base)); color: rgb(var(--c-accent)); -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+::-webkit-scrollbar { display: none; } .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+.logo-invert { transition: filter 0.3s ease; }
+@media (prefers-color-scheme: light) { .logo-invert { filter: invert(1); } }
+
+.ambient-glow { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle at 50% 0%, rgba(59,130,246,0.04) 0%, rgba(0,0,0,0) 60%); pointer-events: none; z-index: 0; }
+@media (prefers-color-scheme: light) { .ambient-glow { background: radial-gradient(circle at 50% 0%, rgba(0,0,0,0.02) 0%, rgba(255,255,255,0) 60%); } }
+
+.glass-card { background: linear-gradient(180deg, rgb(var(--c-surface)), rgb(var(--c-base))); border-radius: 20px; box-shadow: var(--tw-shadow-elite); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative; z-index: 10; }
+.glass-card:hover { box-shadow: var(--tw-shadow-elite-hover); transform: translateY(-2px); border-color: rgb(var(--c-border) / 0.15); }
+
+.expandable-wrapper { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.expandable-wrapper.expanded { grid-template-rows: 1fr; }
+.expandable-inner { overflow: hidden; }
+
+.vault-content-container { transition: opacity 0.2s ease-in-out; }
+
+.input-elite { background: rgb(var(--c-base)); border: 1px solid transparent; box-shadow: var(--tw-shadow-inner-input); border-radius: 12px; color: rgb(var(--c-accent)); transition: all 0.2s ease; }
+.input-elite:focus { background: rgb(var(--c-surface)); border-color: rgb(var(--c-accent) / 0.3); outline: none; box-shadow: var(--tw-shadow-inner-input), 0 0 0 3px rgb(var(--c-accent) / 0.05); }
+
+.dropzone-elite { border: 1.5px dashed rgb(var(--c-border) / 0.15); border-radius: 16px; background: rgb(var(--c-elevated) / 0.3); transition: all 0.3s ease; position: relative; }
+.dropzone-elite.dragover { border-color: rgb(var(--c-accent)); background: rgb(var(--c-accent) / 0.05); transform: scale(1.02); }
+
+.elite-tab { color: rgb(var(--c-muted)); transition: all 0.2s ease; position: relative; }
+.elite-tab:hover { color: rgb(var(--c-accent)); }
+.elite-tab.active { color: rgb(var(--c-accent)); font-weight: 600; }
+.elite-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: rgb(var(--c-accent)); border-radius: 2px 2px 0 0; }
+
+.modal-overlay { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; backdrop-filter: blur(5px); }
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+.modal-content { opacity: 0; transform: translateY(20px) scale(0.98); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.modal-overlay.active .modal-content { opacity: 1; transform: translateY(0) scale(1); }
+
+.dock-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9999px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid; transition: all 0.2s ease; }
+.dock-pill:hover { opacity: 0.8; transform: scale(0.98); }
+
+.chat-bubble-user { background: rgb(59 130 246 / 0.15); border: 1px solid rgb(59 130 246 / 0.3); color: rgb(var(--c-accent)); border-bottom-right-radius: 0; align-self: flex-end; }
+.chat-bubble-agent { background: rgb(var(--c-elevated) / 0.5); border: 1px solid rgb(var(--c-border) / 0.1); color: rgb(var(--c-accent)); border-bottom-left-radius: 0; align-self: flex-start; }
+.mic-active { color: rgb(239 68 68) !important; background: rgb(239 68 68 / 0.1); border-color: rgb(239 68 68 / 0.3) !important; }
