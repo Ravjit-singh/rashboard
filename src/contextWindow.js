@@ -1,7 +1,9 @@
 // src/contextWindow.js
+const { loadChats, saveChats } = require('./database');
 
-let chatHistory = [];
-const MAX_HISTORY_MESSAGES = 15; // Holds about 5-7 full back-and-forth interactions
+// Load history from the hard drive on server boot
+let chatHistory = loadChats();
+const MAX_HISTORY_MESSAGES = 20; // Keeps the last ~7 interactions
 
 function getHistory() {
     return chatHistory;
@@ -10,28 +12,23 @@ function getHistory() {
 function addMessage(message) {
     chatHistory.push(message);
 
-    // SMART TRIMMING: Prevent context amnesia and API crashes.
-    // We only trim if we exceed the max length, AND we ensure we never 
-    // split an "assistant (tool_call)" from its "tool (response)".
+    // SMART TRIMMING: Prevent context amnesia and API crashes
     if (chatHistory.length > MAX_HISTORY_MESSAGES) {
         let sliceIndex = chatHistory.length - MAX_HISTORY_MESSAGES;
-        
-        // Advance the slice index until we find a fresh "user" message.
-        // This guarantees we don't accidentally cut a tool execution sequence in half.
+        // Never split an "assistant (tool_call)" from its "tool (response)"
         while (sliceIndex < chatHistory.length && chatHistory[sliceIndex].role !== 'user') {
             sliceIndex++;
         }
-        
         chatHistory = chatHistory.slice(sliceIndex);
     }
+    
+    // Save to hard drive
+    saveChats(chatHistory);
 }
 
 function clearHistory() {
     chatHistory = [];
+    saveChats(chatHistory);
 }
 
-module.exports = {
-    getHistory,
-    addMessage,
-    clearHistory
-};
+module.exports = { getHistory, addMessage, clearHistory };
