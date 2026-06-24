@@ -14,59 +14,48 @@ if (!fs.existsSync(MEMORY_FILE)) {
     }, null, 2));
 }
 
-function getDynamicTools() {
-    const projectNames = global.systemCache.projects.map(p => p.name || p.id);
-    const validOptions = projectNames.length > 0 ? projectNames.join(", ") : "No projects mapped.";
-
-    return [
-        {
-            type: "function",
-            function: {
-                name: "getProjectStatus",
-                description: "Get the live URL and the secret environment vault keys (like Supabase DB keys) for a mapped project.",
-                parameters: {
-                    type: "object",
-                    properties: {
-                        projectName: { type: "string", description: `Valid options: ${validOptions}` }
-                    },
-                    required: ["projectName"]
-                }
-            }
-        },
-        {
-            type: "function",
-            function: {
-                name: "saveToMemory",
-                description: "Save an important fact, idea, or preference into long-term permanent memory.",
-                parameters: {
-                    type: "object",
-                    properties: {
-                        topic: { type: "string", description: "A short 1-3 word key (e.g., 'User Name', 'App Idea')" },
-                        information: { type: "string", description: "The detailed information to remember permanently." }
-                    },
-                    required: ["topic", "information"]
-                }
+// Static, bulletproof schemas prevent Groq parsing errors
+const tools = [
+    {
+        type: "function",
+        function: {
+            name: "getProjectStatus",
+            description: "Get the live URL and the secret environment vault keys (like Supabase DB keys) for a mapped project.",
+            parameters: {
+                type: "object",
+                properties: {
+                    projectName: { type: "string", description: "The exact name of the project." }
+                },
+                required: ["projectName"]
             }
         }
-    ];
-}
+    },
+    {
+        type: "function",
+        function: {
+            name: "saveToMemory",
+            description: "Save an important fact, idea, or preference into long-term permanent memory.",
+            parameters: {
+                type: "object",
+                properties: {
+                    topic: { type: "string", description: "A short 1-3 word key (e.g., 'User Name', 'App Idea')" },
+                    information: { type: "string", description: "The detailed information to remember permanently." }
+                },
+                required: ["topic", "information"]
+            }
+        }
+    }
+];
 
 function executeTool(toolName, toolArgs) {
     console.log(`[AGENT] Executing tool: ${toolName} with args:`, toolArgs);
     
     if (toolName === "getProjectStatus") {
         const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase() === toolArgs.projectName.toLowerCase());
-        
         if (project) {
-            // We give the AI the actual DB keys from the memory cache!
-            return JSON.stringify({ 
-                name: project.name, 
-                liveUrl: project.liveUrl,
-                vaultKeys: project.tabs || {}, 
-                status: "Project found in system."
-            });
+            return JSON.stringify({ name: project.name, liveUrl: project.liveUrl, vaultKeys: project.tabs || {}, status: "Found" });
         }
-        return JSON.stringify({ error: "Project not found." });
+        return JSON.stringify({ error: `Project '${toolArgs.projectName}' not found in Node.js memory. Remind the user to map it in the UI.` });
     }
     
     if (toolName === "saveToMemory") {
@@ -84,18 +73,24 @@ function executeTool(toolName, toolArgs) {
 }
 
 async function runAgent(userPrompt) {
-    // --- RAG: Inject memory into the prompt instantly ---
     let memoryContext = "{}";
     try { memoryContext = fs.readFileSync(MEMORY_FILE, 'utf8'); } catch(e){}
 
-    const systemPrompt = `You are the central AI agent managing a developer's Rashboard. 
-    You have a permanent memory file. Here is what you currently know:
+    // Inject known projects directly into the prompt so the AI doesn't hallucinate tags
+    const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced from UI yet.";
+
+    const systemPrompt = `You are the central AI agent managing a developer's Rashboard.
+    
+    CURRENTLY SYNCED PROJECTS: [${knownProjects}]
+    
+    PERMANENT MEMORY BANKS:
     ${memoryContext}
     
     RULES:
-    1. If the user tells you to remember something, use saveToMemory.
-    2. If the user asks about a database key or URL for a project, use getProjectStatus, read the 'vaultKeys', and tell them the value.
-    3. Keep responses concise and professional.`;
+    1. To read project URLs or DB keys, use getProjectStatus.
+    2. To save facts, use saveToMemory.
+    3. If the user asks about a project not in CURRENTLY SYNCED PROJECTS, tell them.
+    4. CRITICAL: Never output raw <function> tags in your text. Only use the native tool API.`;
 
     const messages = [
         { role: "system", content: systemPrompt },
@@ -106,7 +101,7 @@ async function runAgent(userPrompt) {
         const response = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages: messages,
-            tools: getDynamicTools(),
+            tools: tools,
             tool_choice: "auto"
         });
 
