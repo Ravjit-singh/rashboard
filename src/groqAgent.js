@@ -3,16 +3,61 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const Groq = require('groq-sdk');
-const { getHistory, addMessage } = require('./contextWindow'); // <-- IMPORTING YOUR NEW MODULE
+const { getHistory, addMessage } = require('./contextWindow'); 
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
 
-// --- RAG: Initialize Permanent Memory ---
+// --- RAG 1.0: Initialize Storage ---
 if (!fs.existsSync(MEMORY_FILE)) {
-    fs.writeFileSync(MEMORY_FILE, JSON.stringify({
-        system: "Rashboard AI Core initialized."
-    }, null, 2));
+    fs.writeFileSync(MEMORY_FILE, JSON.stringify({}, null, 2));
+}
+
+// --- 🧠 LIGHTWEIGHT RAG ENGINE (Zero-Dependency) ---
+function retrieveRelevantMemories(prompt, memoryObj) {
+    // 1. Filter out useless words to find the core intent
+    const stopWords = new Set(['the','is','in','at','of','on','and','a','an','to','for','with','it','this','that','tell','me','about','how','many','are','there']);
+    const words = prompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+    const keywords = words.filter(w => w.length > 2 && !stopWords.has(w));
+
+    if (keywords.length === 0) return "Memory banks ready."; // No strong keywords detected
+
+    let scoredMemories = [];
+
+    // 2. Scan every memory and calculate a Relevance Score
+    for (const [topic, info] of Object.entries(memoryObj)) {
+        if (topic === 'system') continue; 
+        
+        let score = 0;
+        const combinedText = (topic + " " + info).toLowerCase();
+
+        keywords.forEach(kw => {
+            const regex = new RegExp(kw, 'g');
+            const matches = combinedText.match(regex);
+            if (matches) {
+                score += matches.length; // 1 point per word match
+                if (topic.toLowerCase().includes(kw)) score += 3; // +3 Bonus if the word is in the Title
+            }
+        });
+
+        if (score > 0) {
+            scoredMemories.push({ topic, info, score });
+        }
+    }
+
+    if (scoredMemories.length === 0) return "No highly relevant memories found for this specific query.";
+
+    // 3. Sort by highest score and grab ONLY the top 3
+    scoredMemories.sort((a, b) => b.score - a.score);
+    const topMemories = scoredMemories.slice(0, 3);
+
+    // 4. Format into a clean string for the LLM
+    let contextString = "RELEVANT MEMORIES RETAINED FOR THIS TASK:\n";
+    topMemories.forEach(m => {
+        contextString += `- [${m.topic}]: ${m.info}\n`;
+    });
+
+    return contextString;
 }
 
 // --- 🛠️ THE AI TOOLBELT ---
@@ -156,15 +201,19 @@ async function executeTool(toolName, toolArgs) {
 
 // --- 🧠 THE MAIN EXECUTION LOOP ---
 async function runAgent(userPrompt) {
-    let memoryContext = "{}";
-    try { memoryContext = fs.readFileSync(MEMORY_FILE, 'utf8'); } catch(e){}
+    let memoryData = {};
+    try { memoryData = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); } catch(e){}
+
+    // 🚀 EXECUTE TRUE RAG RETRIEVAL
+    const activeMemoryContext = retrieveRelevantMemories(userPrompt, memoryData);
 
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
 
     const systemPrompt = `You are the central AI agent managing a developer's Rashboard.
     
     CURRENTLY SYNCED PROJECTS: [${knownProjects}]
-    PERMANENT MEMORY BANKS: ${memoryContext}
+    
+    ${activeMemoryContext}
     
     RULES:
     1. To fetch live data or count rows, use 'querySupabaseDatabase'.
@@ -189,10 +238,10 @@ async function runAgent(userPrompt) {
         });
 
         let responseMessage = response.choices[0].message;
+        let finalOutput = responseMessage.content;
         
         // If the AI decides to use a tool
         if (responseMessage.tool_calls) {
-            // Record the AI's tool decision in the context window
             addMessage(responseMessage);
             messages.push(responseMessage);
 
@@ -200,26 +249,25 @@ async function runAgent(userPrompt) {
                 const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
                 
                 const toolMessage = { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse };
-                // Record the Tool's output in the context window
                 addMessage(toolMessage);
                 messages.push(toolMessage);
             }
 
-            // Ask the AI to read the tool output and generate a final human answer
             const finalResponse = await groq.chat.completions.create({
                 model: "llama-3.3-70b-versatile",
                 messages: messages
             });
             
-            const finalMessage = finalResponse.choices[0].message;
-            // Record final human answer in the context window
-            addMessage(finalMessage);
-            return finalMessage.content;
+            responseMessage = finalResponse.choices[0].message;
+            finalOutput = responseMessage.content;
         }
 
-        // If no tool was used, just record the normal text response
-        addMessage(responseMessage);
-        return responseMessage.content;
+        // Record final human answer in the context window
+        if (finalOutput) {
+            addMessage({ role: "assistant", content: finalOutput });
+        }
+        
+        return finalOutput;
 
     } catch (error) {
         console.error("[AGENT ERROR]", error);
