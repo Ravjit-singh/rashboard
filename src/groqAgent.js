@@ -15,16 +15,14 @@ if (!fs.existsSync(MEMORY_FILE)) {
 
 // --- 🧠 LIGHTWEIGHT RAG ENGINE (Zero-Dependency) ---
 function retrieveRelevantMemories(prompt, memoryObj) {
-    // 1. Filter out useless words to find the core intent
     const stopWords = new Set(['the','is','in','at','of','on','and','a','an','to','for','with','it','this','that','tell','me','about','how','many','are','there']);
     const words = prompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
     const keywords = words.filter(w => w.length > 2 && !stopWords.has(w));
 
-    if (keywords.length === 0) return "Memory banks ready."; // No strong keywords detected
+    if (keywords.length === 0) return "Memory banks ready.";
 
     let scoredMemories = [];
 
-    // 2. Scan every memory and calculate a Relevance Score
     for (const [topic, info] of Object.entries(memoryObj)) {
         if (topic === 'system') continue; 
         
@@ -35,8 +33,8 @@ function retrieveRelevantMemories(prompt, memoryObj) {
             const regex = new RegExp(kw, 'g');
             const matches = combinedText.match(regex);
             if (matches) {
-                score += matches.length; // 1 point per word match
-                if (topic.toLowerCase().includes(kw)) score += 3; // +3 Bonus if the word is in the Title
+                score += matches.length; 
+                if (topic.toLowerCase().includes(kw)) score += 3; 
             }
         });
 
@@ -47,11 +45,9 @@ function retrieveRelevantMemories(prompt, memoryObj) {
 
     if (scoredMemories.length === 0) return "No highly relevant memories found for this specific query.";
 
-    // 3. Sort by highest score and grab ONLY the top 3
     scoredMemories.sort((a, b) => b.score - a.score);
     const topMemories = scoredMemories.slice(0, 3);
 
-    // 4. Format into a clean string for the LLM
     let contextString = "RELEVANT MEMORIES RETAINED FOR THIS TASK:\n";
     topMemories.forEach(m => {
         contextString += `- [${m.topic}]: ${m.info}\n`;
@@ -91,6 +87,21 @@ const tools = [
             }
         }
     },
+    // 🚨 NEW TOOL: Forget / Remove Memory 🚨
+    {
+        type: "function",
+        function: {
+            name: "removeFromMemory",
+            description: "Use ONLY when the user commands you to 'forget', 'delete', or 'remove' a previously saved memory.",
+            parameters: {
+                type: "object",
+                properties: {
+                    topic: { type: "string", description: "The exact topic name of the memory to delete (as seen in your relevant memories)." }
+                },
+                required: ["topic"]
+            }
+        }
+    },
     {
         type: "function",
         function: {
@@ -122,6 +133,22 @@ async function executeTool(toolName, toolArgs) {
             return JSON.stringify({ success: `Memorized under topic: ${toolArgs.topic}.` });
         } catch (error) {
             return JSON.stringify({ error: "Failed to write to memory disk." });
+        }
+    }
+
+    // 🚨 NEW LOGIC: Forget Memory 🚨
+    if (toolName === "removeFromMemory") {
+        try {
+            const memory = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8'));
+            if (memory[toolArgs.topic]) {
+                delete memory[toolArgs.topic];
+                fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
+                return JSON.stringify({ success: `Memory '${toolArgs.topic}' has been permanently wiped.` });
+            } else {
+                return JSON.stringify({ error: `Could not find a memory with the exact topic '${toolArgs.topic}'.` });
+            }
+        } catch (error) {
+            return JSON.stringify({ error: "Failed to access memory disk." });
         }
     }
 
@@ -165,7 +192,6 @@ async function executeTool(toolName, toolArgs) {
 
             const dbRes = await fetch(fetchUrl, { headers });
             
-            // Auto-Healing Logic
             if (!dbRes.ok) {
                 let availableTables = [];
                 try {
@@ -204,9 +230,7 @@ async function runAgent(userPrompt) {
     let memoryData = {};
     try { memoryData = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); } catch(e){}
 
-    // 🚀 EXECUTE TRUE RAG RETRIEVAL
     const activeMemoryContext = retrieveRelevantMemories(userPrompt, memoryData);
-
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
 
     const systemPrompt = `You are the central AI agent managing a developer's Rashboard.
@@ -218,12 +242,11 @@ async function runAgent(userPrompt) {
     RULES:
     1. To fetch live data or count rows, use 'querySupabaseDatabase'.
     2. If you asked the user to clarify a table name and they say "Yes" or provide the name, IMMEDIATELY use 'querySupabaseDatabase' with the corrected table name.
-    3. Neatly summarize database data. Do NOT dump raw JSON to the user.`;
+    3. If asked to forget a memory, use 'removeFromMemory'.
+    4. Neatly summarize database data. Do NOT dump raw JSON to the user.`;
 
-    // 1. ADD USER MESSAGE TO CONTEXT WINDOW
     addMessage({ role: "user", content: userPrompt });
 
-    // 2. BUILD API MESSAGES (System Prompt + Full Context Window)
     const messages = [
         { role: "system", content: systemPrompt },
         ...getHistory()
@@ -240,7 +263,6 @@ async function runAgent(userPrompt) {
         let responseMessage = response.choices[0].message;
         let finalOutput = responseMessage.content;
         
-        // If the AI decides to use a tool
         if (responseMessage.tool_calls) {
             addMessage(responseMessage);
             messages.push(responseMessage);
@@ -262,7 +284,6 @@ async function runAgent(userPrompt) {
             finalOutput = responseMessage.content;
         }
 
-        // Record final human answer in the context window
         if (finalOutput) {
             addMessage({ role: "assistant", content: finalOutput });
         }
