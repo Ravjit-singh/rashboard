@@ -1,107 +1,58 @@
 [
   {
     "role": "user",
-    "content": "Tell me all the files in assets table"
+    "content": "Tell me number of rows in professionals table service linkup"
   },
   {
     "role": "assistant",
+    "content": "",
     "tool_calls": [
       {
-        "id": "khm55x6hb",
         "type": "function",
         "function": {
           "name": "querySupabaseDatabase",
-          "arguments": "{\"projectName\":\"Devstore\",\"selectQuery\":\"*\",\"tableName\":\"assets\"}"
-        }
+          "arguments": "{\"projectName\": \"Service Linkup\", \"tableName\": \"professionals\", \"selectQuery\": \"count\"}"
+        },
+        "id": "EKzTEJkmcI0Cx7LfBjcCRLpqjZuwg09V"
       }
     ]
   },
   {
-    "tool_call_id": "khm55x6hb",
+    "tool_call_id": "EKzTEJkmcI0Cx7LfBjcCRLpqjZuwg09V",
     "role": "tool",
     "name": "querySupabaseDatabase",
-    "content": "{\"tableName\":\"assets\",\"rowsReturned\":5,\"data\":[{\"id\":\"27fb8777-4dbc-4147-89c2-4ff4fd17df5f\",\"file_name\":\"devstore.html\",\"drive_file_id\":\"1ouw57yM8vODOu9fAgOPJn7zD8KRo1mte\",\"tags\":[\"Web Dev\",\"Codepen\",\"devstore app frontend files \"],\"created_at\":\"2026-04-20T11:23:54.809026+00:00\",\"file_size\":38311},{\"id\":\"28cc0b13-683d-45a0-8569-c7b6f7c98e17\",\"file_name\":\"rmusic.html\",\"drive_file_id\":\"1z2k431rox52z6f9w__GPQ5jtsk5APefH\",\"tags\":[\"Web Dev\",\"Codepen\",\"Standalone file for rmusic \"],\"created_at\":\"2026-04-20T11:24:51.954806+00:00\",\"file_size\":37120},{\"id\":\"22827ef5-0bc4-4ebd-8fac-0d96e20d8f01\",\"file_name\":\"skillmax_mk2.html\",\"drive_file_id\":\"12yPiTc8S6Iu-VMMb2X4rHTk8NZ1cC8Ms\",\"tags\":[\"App Dev\",\"Codepen\",\"Skillmax standalone file \"],\"created_at\":\"2026-04-20T11:25:41.555121+00:00\",\"file_size\":38149},{\"id\":\"79c0a380-b969-437d-a1a1-b5e1f71ffbdd\",\"file_name\":\"rassistantui.html\",\"drive_file_id\":\"1ZiT8J01QqisbYoKVX7wa4Xxtv7MR67-T\",\"tags\":[\"App Dev\",\"Codepen\",\"Frontend for custom ai language modell in dark theme\"],\"created_at\":\"2026-04-20T11:26:29.762108+00:00\",\"file_size\":19204},{\"id\":\"79db9a40-fee2-4ffd-8a26-7a92a2488796\",\"file_name\":\"DevStore Feature Roadmap.docx\",\"drive_file_id\":\"1AriEo110b8dc3nXPtDR7Tjgk7rpViVUo\",\"tags\":[\"App Dev\",\"Logic\",\"Full roadmap to build devstore\"],\"created_at\":\"2026-04-21T17:11:05.469026+00:00\",\"file_size\":8584}]}"
+    "content": "{\"tableName\":\"professionals\",\"totalRowCount\":3}"
   },
   {
     "role": "assistant",
-    "content": "Here is a neatly summarized list of files in the \"assets\" table:\n\n1. **devstore.html** - a web development file with a size of 38.31 KB, tagged with \"Web Dev\", \"Codepen\", and \"devstore app frontend files\".\n2. **rmusic.html** - a web development file with a size of 37.12 KB, tagged with \"Web Dev\", \"Codepen\", and \"Standalone file for rmusic\".\n3. **skillmax_mk2.html** - an app development file with a size of 38.15 KB, tagged with \"App Dev\", \"Codepen\", and \"Skillmax standalone file\".\n4. **rassistantui.html** - an app development file with a size of 19.2 KB, tagged with \"App Dev\", \"Codepen\", and \"Frontend for custom ai language model in dark theme\".\n5. **DevStore Feature Roadmap.docx** - a document file with a size of 8.58 KB, tagged with \"App Dev\", \"Logic\", and \"Full roadmap to build devstore\".\n\nLet me know if you need any further assistance!"
+    "content": "The professionals table in Service Linkup has 3 rows."
   },
   {
     "role": "user",
-    "content": "Good from now on when I say files from devstore I mean assets name from devstore"
+    "content": "Awesome, please email this data to sainisukhi55124@gmail.com with the subject 'Rashboard Metrics Update"
   },
   {
     "role": "assistant",
+    "content": "",
     "tool_calls": [
       {
-        "id": "xyajbe29w",
         "type": "function",
         "function": {
-          "name": "saveToMemory",
-          "arguments": "{\"information\":\"When user says 'files from Devstore', it means 'assets name from Devstore'\",\"topic\":\"Files from Devstore\"}"
-        }
+          "name": "sendEmail",
+          "arguments": "{\"to\": \"sainisukhi55124@gmail.com\", \"subject\": \"Rashboard Metrics Update\", \"body\": \"The professionals table in Service Linkup has 3 rows.\"}"
+        },
+        "id": "xmSs06dQwSDVYh2h6AwLNlO6PIn1njQV"
       }
     ]
   },
   {
-    "tool_call_id": "xyajbe29w",
+    "tool_call_id": "xmSs06dQwSDVYh2h6AwLNlO6PIn1njQV",
     "role": "tool",
-    "name": "saveToMemory",
-    "content": "{\"success\":\"Memorized under topic: Files from Devstore.\"}"
+    "name": "sendEmail",
+    "content": "{\"success\":\"Email layout successfully constructed and routed to destination inbox.\"}"
   },
   {
     "role": "assistant",
-    "content": "I've updated my memory to reflect that when you say \"files from Devstore\", it means you are referring to the \"assets name\" from Devstore. I'll keep this in mind for our future conversations. If you need to retrieve or discuss the assets from Devstore, I'll be able to provide you with the correct information."
-  },
-  {
-    "role": "user",
-    "content": "Pls save this into your memory"
-  },
-  {
-    "role": "assistant",
-    "tool_calls": [
-      {
-        "id": "md4jpstdt",
-        "type": "function",
-        "function": {
-          "name": "saveToMemory",
-          "arguments": "{\"information\":\"The user wants the AI to remember that 'files from Devstore' refers to 'assets name from Devstore'\",\"topic\":\"Devstore Files Definition\"}"
-        }
-      }
-    ]
-  },
-  {
-    "tool_call_id": "md4jpstdt",
-    "role": "tool",
-    "name": "saveToMemory",
-    "content": "{\"success\":\"Memorized under topic: Devstore Files Definition.\"}"
-  },
-  {
-    "role": "assistant",
-    "content": "I've saved this information into my memory. From now on, when you ask about \"files from Devstore\", I will understand it to mean the names of assets from Devstore, which are: \n\n1. devstore.html\n2. rmusic.html\n3. skillmax_mk2.html\n4. rassistantui.html\n5. DevStore Feature Roadmap.docx\n\nLet me know if there's anything else I can help you with!"
-  },
-  {
-    "role": "user",
-    "content": "How many projects are there"
-  },
-  {
-    "role": "assistant",
-    "content": "There are 4 currently synced projects: \n\n1. SkillMAX\n2. Service Linkup\n3. YourHost\n4. Devstore"
-  },
-  {
-    "role": "user",
-    "content": "Tell something about skillmax"
-  },
-  {
-    "role": "user",
-    "content": "Skillmax"
-  },
-  {
-    "role": "user",
-    "content": "Fet h details about skillmax"
-  },
-  {
-    "role": "user",
-    "content": "Tell me about skillmax"
+    "content": "The email layout has been successfully constructed and routed to the inbox of sainisukhi55124@gmail.com with the subject 'Rashboard Metrics Update'."
   }
 ]
