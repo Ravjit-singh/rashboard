@@ -3,12 +3,12 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const Groq = require('groq-sdk');
+const nodemailer = require('nodemailer'); // <-- INJECTING DISPATCHER ENGINE
 const { getHistory, addMessage } = require('./contextWindow'); 
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
 
-// --- RAG 1.0: Initialize Storage ---
 if (!fs.existsSync(MEMORY_FILE)) {
     fs.writeFileSync(MEMORY_FILE, JSON.stringify({}, null, 2));
 }
@@ -20,15 +20,12 @@ function retrieveRelevantMemories(prompt, memoryObj) {
     const keywords = words.filter(w => w.length > 2 && !stopWords.has(w));
 
     if (keywords.length === 0) return "Memory banks ready.";
-
     let scoredMemories = [];
 
     for (const [topic, info] of Object.entries(memoryObj)) {
         if (topic === 'system') continue; 
-        
         let score = 0;
         const combinedText = (topic + " " + info).toLowerCase();
-
         keywords.forEach(kw => {
             const regex = new RegExp(kw, 'g');
             const matches = combinedText.match(regex);
@@ -37,22 +34,15 @@ function retrieveRelevantMemories(prompt, memoryObj) {
                 if (topic.toLowerCase().includes(kw)) score += 3; 
             }
         });
-
-        if (score > 0) {
-            scoredMemories.push({ topic, info, score });
-        }
+        if (score > 0) scoredMemories.push({ topic, info, score });
     }
 
     if (scoredMemories.length === 0) return "No highly relevant memories found for this specific query.";
-
     scoredMemories.sort((a, b) => b.score - a.score);
     const topMemories = scoredMemories.slice(0, 3);
 
     let contextString = "RELEVANT MEMORIES RETAINED FOR THIS TASK:\n";
-    topMemories.forEach(m => {
-        contextString += `- [${m.topic}]: ${m.info}\n`;
-    });
-
+    topMemories.forEach(m => { contextString += `- [${m.topic}]: ${m.info}\n`; });
     return contextString;
 }
 
@@ -65,9 +55,7 @@ const tools = [
             description: "Get the live URL and the secret environment vault keys for a mapped project.",
             parameters: {
                 type: "object",
-                properties: {
-                    projectName: { type: "string", description: "The exact name of the project." }
-                },
+                properties: { projectName: { type: "string", description: "The exact name of the project." } },
                 required: ["projectName"]
             }
         }
@@ -76,19 +64,17 @@ const tools = [
         type: "function",
         function: {
             name: "saveToMemory",
-            description: "Trigger this IMMEDIATELY to save a fact to your permanent hard drive anytime the user says 'remember', 'keep in mind', 'note', or gives you a specific rule/mapping to follow.",
+            description: "Trigger this IMMEDIATELY to save a fact permanently anytime the user says 'remember', 'keep in mind', 'note', or dictates a structural rule.",
             parameters: {
                 type: "object",
                 properties: {
-                    topic: { type: "string", description: "A short 1-3 word key (e.g., 'Files Table Mapping')." },
+                    topic: { type: "string", description: "A short 1-3 word key." },
                     information: { type: "string", description: "The detailed info to save." }
                 },
                 required: ["topic", "information"]
             }
         }
     },
-
-    // 🚨 NEW TOOL: Forget / Remove Memory 🚨
     {
         type: "function",
         function: {
@@ -96,10 +82,25 @@ const tools = [
             description: "Use ONLY when the user commands you to 'forget', 'delete', or 'remove' a previously saved memory.",
             parameters: {
                 type: "object",
-                properties: {
-                    topic: { type: "string", description: "The exact topic name of the memory to delete (as seen in your relevant memories)." }
-                },
+                properties: { topic: { type: "string", description: "The exact topic name of the memory to delete." } },
                 required: ["topic"]
+            }
+        }
+    },
+    // 📬 NEW TOOL: Automated Email Dispatch 📬
+    {
+        type: "function",
+        function: {
+            name: "sendEmail",
+            description: "Dispatches a clean, formatted email containing data reports, metrics, notes, or conversation highlights to a specified address.",
+            parameters: {
+                type: "object",
+                properties: {
+                    to: { type: "string", description: "The recipient's clean email address (e.g., target@gmail.com)." },
+                    subject: { type: "string", description: "A highly clear, context-specific subject line." },
+                    body: { type: "string", description: "The core report or text content to email. Use clear formatting." }
+                },
+                required: ["to", "subject", "body"]
             }
         }
     },
@@ -132,12 +133,9 @@ async function executeTool(toolName, toolArgs) {
             memory[toolArgs.topic] = toolArgs.information;
             fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
             return JSON.stringify({ success: `Memorized under topic: ${toolArgs.topic}.` });
-        } catch (error) {
-            return JSON.stringify({ error: "Failed to write to memory disk." });
-        }
+        } catch (error) { return JSON.stringify({ error: "Failed to write to memory disk." }); }
     }
 
-    // 🚨 NEW LOGIC: Forget Memory 🚨
     if (toolName === "removeFromMemory") {
         try {
             const memory = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8'));
@@ -145,11 +143,35 @@ async function executeTool(toolName, toolArgs) {
                 delete memory[toolArgs.topic];
                 fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
                 return JSON.stringify({ success: `Memory '${toolArgs.topic}' has been permanently wiped.` });
-            } else {
-                return JSON.stringify({ error: `Could not find a memory with the exact topic '${toolArgs.topic}'.` });
+            } else { return JSON.stringify({ error: `Could not find memory key '${toolArgs.topic}'.` }); }
+        } catch (error) { return JSON.stringify({ error: "Failed to access memory disk." }); }
+    }
+
+    // 🚀 EXECUTE AUTOMATED MAIL ROUTING 🚀
+    if (toolName === "sendEmail") {
+        try {
+            if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+                return JSON.stringify({ error: "Mail server parameters missing from local Rashboard .env vault configuration." });
             }
+
+            const transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST,
+                port: parseInt(process.env.SMTP_PORT || '587', 10),
+                secure: process.env.SMTP_PORT === '465', 
+                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+            });
+
+            await transporter.sendMail({
+                from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                to: toolArgs.to,
+                subject: toolArgs.subject,
+                text: toolArgs.body,
+                html: `<div style="font-family: sans-serif; max-width: 600px; color: #111; line-height: 1.6;">${toolArgs.body.replace(/\n/g, '<br>')}</div>`
+            });
+
+            return JSON.stringify({ success: `Message cleanly routed and dispatched to destination mailbox: ${toolArgs.to}.` });
         } catch (error) {
-            return JSON.stringify({ error: "Failed to access memory disk." });
+            return JSON.stringify({ error: `Network SMTP engine execution failure: ${error.message}` });
         }
     }
 
@@ -219,9 +241,7 @@ async function executeTool(toolName, toolArgs) {
                 const data = await dbRes.json();
                 return JSON.stringify({ tableName: toolArgs.tableName, rowsReturned: data.length, data: data });
             }
-        } catch (err) {
-            return JSON.stringify({ error: "Failed to establish network connection to Database." });
-        }
+        } catch (err) { return JSON.stringify({ error: "Failed to establish network connection to Database." }); }
     }
     return JSON.stringify({ error: "Unknown tool called." });
 }
@@ -244,7 +264,7 @@ async function runAgent(userPrompt) {
     1. To fetch live data or count rows, use 'querySupabaseDatabase'.
     2. If you asked the user to clarify a table name and they say "Yes" or provide the name, IMMEDIATELY use 'querySupabaseDatabase' with the corrected table name.
     3. If asked to forget a memory, use 'removeFromMemory'.
-    4. Neatly summarize database data. Do NOT dump raw JSON to the user.
+    4. If the user commands you to email information, compile it beautifully and invoke 'sendEmail'.
     5. CRITICAL: If the user tells you a new fact, mapping, or rule to 'keep in mind', ALWAYS execute the 'saveToMemory' tool. Do not just verbally acknowledge it.`;
 
     addMessage({ role: "user", content: userPrompt });
@@ -271,7 +291,6 @@ async function runAgent(userPrompt) {
 
             for (const toolCall of responseMessage.tool_calls) {
                 const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
-                
                 const toolMessage = { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse };
                 addMessage(toolMessage);
                 messages.push(toolMessage);
@@ -281,17 +300,12 @@ async function runAgent(userPrompt) {
                 model: "llama-3.3-70b-versatile",
                 messages: messages
             });
-            
             responseMessage = finalResponse.choices[0].message;
             finalOutput = responseMessage.content;
         }
 
-        if (finalOutput) {
-            addMessage({ role: "assistant", content: finalOutput });
-        }
-        
+        if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
         return finalOutput;
-
     } catch (error) {
         console.error("[AGENT ERROR]", error);
         return "System failure: Agent could not process the request.";
