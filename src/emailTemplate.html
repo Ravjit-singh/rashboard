@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{SUBJECT}}</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #09090b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; color: #fafafa; }
+        .wrapper { box-sizing: border-box; width: 100%; max-width: 600px; margin: 0 auto; padding: 40px 20px; }
+        .card { background-color: #18181b; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .header { display: flex; align-items: center; margin-bottom: 24px; border-b: 1px solid rgba(255,255,255,0.05); padding-bottom: 16px; }
+        .title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #3b82f6; margin: 0; }
+        .subject { font-size: 20px; font-weight: 700; tracking: -0.02em; color: #fafafa; margin: 8px 0 0 0; }
+        .content { font-size: 14px; line-height: 1.6; color: #a1a1aa; margin-top: 24px; }
+        .content p { margin: 0 0 16px 0; }
+        .content p:last-child { margin-bottom: 0; }
+        .footer { margin-top: 32px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px; text-align: center; }
+        .footer-text { font-size: 11px; font-weight: 500; color: #71717a; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="card">
+            <div class="header">
+                <div>
+                    <h2 class="title">Rashboard Core System Dispatch</h2>
+                    <h1 class="subject">{{SUBJECT}}</h1>
+                </div>
+            </div>
+            <div class="content">
+                {{BODY}}
+            </div>
+            <div class="footer">
+                <p class="footer-text">Automated operational notification sent via local node server runtime.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

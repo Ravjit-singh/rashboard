@@ -3,11 +3,12 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const Groq = require('groq-sdk');
-const nodemailer = require('nodemailer'); // <-- INJECTING DISPATCHER ENGINE
+const nodemailer = require('nodemailer');
 const { getHistory, addMessage } = require('./contextWindow'); 
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
+const TEMPLATE_FILE = path.join(__dirname, 'emailTemplate.html');
 
 if (!fs.existsSync(MEMORY_FILE)) {
     fs.writeFileSync(MEMORY_FILE, JSON.stringify({}, null, 2));
@@ -87,18 +88,17 @@ const tools = [
             }
         }
     },
-    // 📬 NEW TOOL: Automated Email Dispatch 📬
     {
         type: "function",
         function: {
             name: "sendEmail",
-            description: "Dispatches a clean, formatted email containing data reports, metrics, notes, or conversation highlights to a specified address.",
+            description: "Dispatches an email via a standard local design template. Generate plain text content for the body only; the system wrapper formats it automatically.",
             parameters: {
                 type: "object",
                 properties: {
-                    to: { type: "string", description: "The recipient's clean email address (e.g., target@gmail.com)." },
-                    subject: { type: "string", description: "A highly clear, context-specific subject line." },
-                    body: { type: "string", description: "The core report or text content to email. Use clear formatting." }
+                    to: { type: "string", description: "The recipient's target email address." },
+                    subject: { type: "string", description: "A summary sentence for the email header context." },
+                    body: { type: "string", description: "The text data report, summary, or details to compile inside the message container." }
                 },
                 required: ["to", "subject", "body"]
             }
@@ -125,7 +125,7 @@ const tools = [
 
 // --- ⚙️ TOOL EXECUTION LOGIC ---
 async function executeTool(toolName, toolArgs) {
-    console.log(`[AGENT] Executing tool: ${toolName} with args:`, toolArgs);
+    console.log(`[AGENT] Executing tool: ${toolName}`);
     
     if (toolName === "saveToMemory") {
         try {
@@ -147,17 +147,27 @@ async function executeTool(toolName, toolArgs) {
         } catch (error) { return JSON.stringify({ error: "Failed to access memory disk." }); }
     }
 
-    // 🚀 EXECUTE AUTOMATED MAIL ROUTING 🚀
     if (toolName === "sendEmail") {
         try {
             if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
-                return JSON.stringify({ error: "Mail server parameters missing from local Rashboard .env vault configuration." });
+                return JSON.stringify({ error: "Mail configurations missing from your system environmental variables." });
             }
+            if (!fs.existsSync(TEMPLATE_FILE)) {
+                return JSON.stringify({ error: "Local html blueprint template not discovered in file path storage." });
+            }
+
+            // 📂 READ TEMPLATE AND INJECT CONTENT
+            let htmlLayout = fs.readFileSync(TEMPLATE_FILE, 'utf8');
+            const cleanBodyHtml = toolArgs.body.split('\n').map(p => p.trim() ? `<p>${p.trim()}</p>` : '').join('');
+            
+            htmlLayout = htmlLayout
+                .replace(/{{SUBJECT}}/g, toolArgs.subject)
+                .replace(/{{BODY}}/g, cleanBodyHtml);
 
             const transporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST,
                 port: parseInt(process.env.SMTP_PORT || '587', 10),
-                secure: process.env.SMTP_PORT === '465', 
+                secure: process.env.SMTP_PORT === '464', 
                 auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
             });
 
@@ -165,13 +175,13 @@ async function executeTool(toolName, toolArgs) {
                 from: process.env.SMTP_FROM || process.env.SMTP_USER,
                 to: toolArgs.to,
                 subject: toolArgs.subject,
-                text: toolArgs.body,
-                html: `<div style="font-family: sans-serif; max-width: 600px; color: #111; line-height: 1.6;">${toolArgs.body.replace(/\n/g, '<br>')}</div>`
+                text: toolArgs.body, // Text backup parameter
+                html: htmlLayout // Injected HTML Layout parameters
             });
 
-            return JSON.stringify({ success: `Message cleanly routed and dispatched to destination mailbox: ${toolArgs.to}.` });
+            return JSON.stringify({ success: `Email layout successfully constructed and routed to destination inbox.` });
         } catch (error) {
-            return JSON.stringify({ error: `Network SMTP engine execution failure: ${error.message}` });
+            return JSON.stringify({ error: `SMTP server socket initialization fault: ${error.message}` });
         }
     }
 
@@ -264,7 +274,7 @@ async function runAgent(userPrompt) {
     1. To fetch live data or count rows, use 'querySupabaseDatabase'.
     2. If you asked the user to clarify a table name and they say "Yes" or provide the name, IMMEDIATELY use 'querySupabaseDatabase' with the corrected table name.
     3. If asked to forget a memory, use 'removeFromMemory'.
-    4. If the user commands you to email information, compile it beautifully and invoke 'sendEmail'.
+    4. If asked to send an email, use 'sendEmail'. Generate plain text message statements only; do not attempt to write raw HTML styles.
     5. CRITICAL: If the user tells you a new fact, mapping, or rule to 'keep in mind', ALWAYS execute the 'saveToMemory' tool. Do not just verbally acknowledge it.`;
 
     addMessage({ role: "user", content: userPrompt });
