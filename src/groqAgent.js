@@ -76,17 +76,18 @@ const tools = [
         type: "function",
         function: {
             name: "saveToMemory",
-            description: "Use ONLY when the user EXPLICITLY commands you to 'remember', 'save', or 'memorize' something.",
+            description: "Trigger this IMMEDIATELY to save a fact to your permanent hard drive anytime the user says 'remember', 'keep in mind', 'note', or gives you a specific rule/mapping to follow.",
             parameters: {
                 type: "object",
                 properties: {
-                    topic: { type: "string", description: "A short 1-3 word key." },
+                    topic: { type: "string", description: "A short 1-3 word key (e.g., 'Files Table Mapping')." },
                     information: { type: "string", description: "The detailed info to save." }
                 },
                 required: ["topic", "information"]
             }
         }
     },
+
     // 🚨 NEW TOOL: Forget / Remove Memory 🚨
     {
         type: "function",
@@ -243,7 +244,8 @@ async function runAgent(userPrompt) {
     1. To fetch live data or count rows, use 'querySupabaseDatabase'.
     2. If you asked the user to clarify a table name and they say "Yes" or provide the name, IMMEDIATELY use 'querySupabaseDatabase' with the corrected table name.
     3. If asked to forget a memory, use 'removeFromMemory'.
-    4. Neatly summarize database data. Do NOT dump raw JSON to the user.`;
+    4. Neatly summarize database data. Do NOT dump raw JSON to the user.
+    5. CRITICAL: If the user tells you a new fact, mapping, or rule to 'keep in mind', ALWAYS execute the 'saveToMemory' tool. Do not just verbally acknowledge it.`;
 
     addMessage({ role: "user", content: userPrompt });
 
