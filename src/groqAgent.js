@@ -14,9 +14,6 @@ if (!fs.existsSync(MEMORY_FILE)) {
     fs.writeFileSync(MEMORY_FILE, JSON.stringify({}, null, 2));
 }
 
-// ... [Keep all your retrieveRelevantMemories, tools, and executeTool code exactly as it is] ...
-
-
 // --- 🧠 LIGHTWEIGHT RAG ENGINE (Zero-Dependency) ---
 function retrieveRelevantMemories(prompt, memoryObj) {
     const stopWords = new Set(['the','is','in','at','of','on','and','a','an','to','for','with','it','this','that','tell','me','about','how','many','are','there']);
@@ -259,40 +256,79 @@ async function executeTool(toolName, toolArgs) {
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
-// --- 🧠 LOCAL API DRIVER ---
-// A custom fetch wrapper that talks to llama.cpp instead of Groq
-async function queryLocalModel(messages, useTools = true) {
+// --- 🧠 LOCAL API DRIVER (REAL-TIME STREAMING) ---
+async function streamLocalAPI(messages, res) {
+    const LOCAL_API_URL = "http://127.0.0.1:8080/v1/chat/completions";
+    
     const payload = {
-        model: "local-model",
+        model: "qwen2.5-1.5b",
         messages: messages,
-        temperature: 0.1 // Keep it focused and logical
+        temperature: 0.1,
+        stream: true, // Activate local C++ streaming
+        tools: tools,
+        tool_choice: "auto"
     };
 
-    if (useTools) {
-        payload.tools = tools;
-        payload.tool_choice = "auto";
-    }
-
-    const res = await fetch(LOCAL_API_URL, {
+    const fetchRes = await fetch(LOCAL_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
     });
 
-    if (!res.ok) throw new Error(`Local Server Offline: ${res.statusText}`);
-    const data = await res.json();
-    return data.choices[0].message;
+    if (!fetchRes.ok) throw new Error("Local AI Offline");
+
+    const reader = fetchRes.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    
+    let fullText = "";
+    let toolCalls = [];
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                try {
+                    const data = JSON.parse(line.slice(6));
+                    const delta = data.choices[0].delta;
+
+                    // Stream standard text directly to the UI pipe
+                    if (delta.content) {
+                        fullText += delta.content;
+                        if (res) res.write(delta.content);
+                    }
+
+                    // Buffer JSON Tool arguments completely silently 
+                    if (delta.tool_calls) {
+                        for (const tc of delta.tool_calls) {
+                            if (!toolCalls[tc.index]) {
+                                toolCalls[tc.index] = { id: tc.id, type: "function", function: { name: tc.function?.name || "", arguments: "" } };
+                            }
+                            if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name;
+                            if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+    
+    return { content: fullText, tool_calls: toolCalls.length > 0 ? toolCalls : null };
 }
 
 // --- 🧠 THE MAIN EXECUTION LOOP ---
-async function runAgent(userPrompt) {
+async function runAgent(userPrompt, res) { 
     let memoryData = {};
     try { memoryData = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); } catch(e){}
 
     const activeMemoryContext = retrieveRelevantMemories(userPrompt, memoryData);
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
 
-        const systemPrompt = `You are RASHBOARD-AI, a strict, local backend engineering assistant.
+    const systemPrompt = `You are RASHBOARD-AI, a strict, local backend engineering assistant.
     Your ONLY purpose is to manage the user's infrastructure. Do not make up answers.
     
     [KNOWN PROJECTS]: ${knownProjects}
@@ -312,16 +348,16 @@ async function runAgent(userPrompt) {
     ];
 
     try {
-        // 1. Send conversation to Local Llama 3.2
-        let responseMessage = await queryLocalModel(messages, true);
+        // PASS 1: Stream the thought process
+        let responseMessage = await streamLocalAPI(messages, res);
         let finalOutput = responseMessage.content;
         
-        // 2. Check if the local AI wants to use a tool
+        // Did the model want to trigger a background tool?
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-            addMessage(responseMessage);
-            messages.push(responseMessage);
+            
+            addMessage({ role: "assistant", tool_calls: responseMessage.tool_calls });
+            messages.push({ role: "assistant", tool_calls: responseMessage.tool_calls });
 
-            // Execute the tools locally
             for (const toolCall of responseMessage.tool_calls) {
                 const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
                 const toolMessage = { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse };
@@ -329,16 +365,18 @@ async function runAgent(userPrompt) {
                 messages.push(toolMessage);
             }
 
-            // 3. Send the tool results back to the AI for a final summary
-            responseMessage = await queryLocalModel(messages, false);
-            finalOutput = responseMessage.content;
+            // PASS 2: Send tool results back to the stream and update UI
+            const finalResponse = await streamLocalAPI(messages, res);
+            finalOutput = finalResponse.content;
+        } else {
+            if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
         }
-
-        if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
-        return finalOutput || "Task executed successfully.";
+        
+        return finalOutput;
     } catch (error) {
         console.error("[AGENT ERROR]", error);
-        return "System failure: Local AI engine offline or unreachable. Please ensure ./llama-server is running.";
+        if (res && !res.headersSent) res.write("System failure: Local AI engine offline or unreachable.");
+        return null;
     }
 }
 

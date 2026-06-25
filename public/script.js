@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
         init();
         switchView('workspace');
-        setupEventListeners(); // Safely binds all AI and UI buttons
+        setupEventListeners();
         setTimeout(forceRemoveSplash, 300);
     } catch (error) {
         console.error("[SYSTEM FATAL] Boot sequence crashed:", error);
@@ -420,16 +420,12 @@ function importData(e) {
         try { 
             const imp = JSON.parse(event.target.result); 
             if (Array.isArray(imp)) { 
-                // FAILSAFE: Instantly destroy any corrupted 'null' projects
                 projects = imp.filter(p => p !== null); 
-                
                 localStorage.setItem('rashboard_v13', JSON.stringify(projects)); 
-                
                 projects.forEach(p => { 
                     const k = Object.keys(p.tabs || {}); 
                     if(k.length) activeTabs[p.id] = k[0]; 
                 }); 
-                
                 saveStateMeta(); 
                 switchView('workspace'); 
                 renderProjects(); 
@@ -441,7 +437,6 @@ function importData(e) {
             }
         } catch(err) { 
             console.error("Restore Error:", err);
-            // Now the toast will tell you exactly what went wrong!
             showToast(`Error: ${err.message}`, "error"); 
         } 
     }; 
@@ -544,7 +539,7 @@ function appendMessage(text, isUser) {
     if (chatBox) setTimeout(() => { chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }); }, 50);
 }
 
-// --- 🎯 SAFELY BIND EVENT LISTENERS AFTER DOM LOAD ---
+// --- 🎯 SAFELY BIND EVENT LISTENERS & STREAMING ENGINE ---
 function setupEventListeners() {
     const voiceToggleBtn = document.getElementById('voice-toggle-btn'); 
     const voiceIcon = document.getElementById('voice-icon'); 
@@ -605,6 +600,8 @@ function setupEventListeners() {
 
     const chatForm = document.getElementById('chat-form'); 
     const sendBtn = document.getElementById('send-btn');
+    const chatWrapper = document.getElementById('chat-content-wrapper');
+    const chatBox = document.getElementById('chat-box');
     
     if (chatForm && messageInput && sendBtn) {
         chatForm.addEventListener('submit', async (e) => {
@@ -614,10 +611,18 @@ function setupEventListeners() {
             
             if (window.speechSynthesis) window.speechSynthesis.cancel();
             
+            // 1. Post User Message immediately
             appendMessage(message, true); 
             messageInput.value = ''; 
             sendBtn.innerHTML = `<span class="w-4 h-4 border-2 border-accentInv border-t-transparent rounded-full animate-spin"></span>`; 
             sendBtn.disabled = true;
+
+            // 2. Instantiate an empty Agent Message Box instantly
+            const agentBubble = document.createElement('div');
+            agentBubble.className = `p-4 rounded-2xl max-w-[90%] md:max-w-[80%] text-sm shadow-inner-light animate-slide-up leading-relaxed chat-bubble-agent`;
+            agentBubble.innerHTML = `<span class="animate-pulse text-muted">Thinking...</span>`;
+            if (chatWrapper) chatWrapper.appendChild(agentBubble);
+            if (chatBox) chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
             
             try {
                 const response = await fetch('/api/chat', { 
@@ -625,11 +630,37 @@ function setupEventListeners() {
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ message }) 
                 });
-                const data = await response.json(); 
-                appendMessage(data.response, false); 
-                speakAgentText(data.response);
+
+                if (!response.body) throw new Error("No stream payload received");
+
+                // 3. Mount the Decoder and Process the Stream real-time
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let fullText = '';
+                
+                // Clear the 'Thinking' text and add a blinking cursor block
+                agentBubble.innerHTML = `<span class="inline-block w-1.5 h-3.5 ml-1 bg-accent/70 animate-pulse"></span>`;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullText += chunk;
+                    
+                    // Render current text + bold formats + the blinking cursor
+                    agentBubble.innerHTML = fullText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + `<span class="inline-block w-1.5 h-3.5 ml-1 bg-accent/70 animate-pulse"></span>`;
+                    
+                    // Auto-scroll slightly so the new words are always visible
+                    if (chatBox) chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+                }
+
+                // 4. Stream Complete: Remove the cursor and fire Voice API
+                agentBubble.innerHTML = fullText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                speakAgentText(fullText);
+
             } catch (error) { 
-                appendMessage("System Error: Failed to reach the Core router.", false); 
+                agentBubble.innerHTML = "System Error: Failed to reach the Core router or stream interrupted."; 
             } finally {
                 sendBtn.innerHTML = `<span class="hidden md:inline">SEND</span><svg class="w-4 h-4 md:w-3 md:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>`;
                 sendBtn.disabled = false; 

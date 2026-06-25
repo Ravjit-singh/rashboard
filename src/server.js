@@ -63,14 +63,27 @@ cron.schedule('0 0 */2 * *', async () => {
     // Later: We will map over global.systemCache.projects to ping them dynamically
 });
 
-// --- 🤖 AI AGENT ENDPOINT ---
+// --- 🤖 AI AGENT ENDPOINT (STREAMING UPGRADE) ---
 app.post('/api/chat', async (req, res) => {
     const userMessage = req.body.message;
     if (!userMessage) return res.status(400).json({ error: "Message is required." });
     
     console.log(`[USER REQUEST]: ${userMessage}`);
-    const agentResponse = await runAgent(userMessage);
-    res.json({ response: agentResponse });
+
+    // 1. Set headers to establish a continuous raw data stream
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('Connection', 'keep-alive');
+
+    try {
+        // 2. Pass 'res' directly into the agent so it can pipe words as they are generated
+        await runAgent(userMessage, res);
+        res.end(); // Close the stream when the agent is done
+    } catch (err) {
+        console.error("[STREAM ERROR]", err);
+        if (!res.headersSent) res.status(500).send("Stream failed");
+        else res.end();
+    }
 });
 
 app.listen(PORT, () => {
