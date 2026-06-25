@@ -1,18 +1,21 @@
-// src/groqAgent.js
+// src/localAgent.js (Formerly groqAgent.js)
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
-const Groq = require('groq-sdk');
 const nodemailer = require('nodemailer');
 const { getHistory, addMessage } = require('./contextWindow'); 
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// 🚨 We are now aiming at your local Termux server! 🚨
+const LOCAL_API_URL = "http://127.0.0.1:8080/v1/chat/completions";
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
 const TEMPLATE_FILE = path.join(__dirname, 'emailTemplate.html');
 
 if (!fs.existsSync(MEMORY_FILE)) {
     fs.writeFileSync(MEMORY_FILE, JSON.stringify({}, null, 2));
 }
+
+// ... [Keep all your retrieveRelevantMemories, tools, and executeTool code exactly as it is] ...
+
 
 // --- 🧠 LIGHTWEIGHT RAG ENGINE (Zero-Dependency) ---
 function retrieveRelevantMemories(prompt, memoryObj) {
@@ -256,6 +259,31 @@ async function executeTool(toolName, toolArgs) {
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
+// --- 🧠 LOCAL API DRIVER ---
+// A custom fetch wrapper that talks to llama.cpp instead of Groq
+async function queryLocalModel(messages, useTools = true) {
+    const payload = {
+        model: "local-model",
+        messages: messages,
+        temperature: 0.1 // Keep it focused and logical
+    };
+
+    if (useTools) {
+        payload.tools = tools;
+        payload.tool_choice = "auto";
+    }
+
+    const res = await fetch(LOCAL_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error(`Local Server Offline: ${res.statusText}`);
+    const data = await res.json();
+    return data.choices[0].message;
+}
+
 // --- 🧠 THE MAIN EXECUTION LOOP ---
 async function runAgent(userPrompt) {
     let memoryData = {};
@@ -274,8 +302,8 @@ async function runAgent(userPrompt) {
     1. To fetch live data or count rows, use 'querySupabaseDatabase'.
     2. If you asked the user to clarify a table name and they say "Yes" or provide the name, IMMEDIATELY use 'querySupabaseDatabase' with the corrected table name.
     3. If asked to forget a memory, use 'removeFromMemory'.
-    4. If asked to send an email, use 'sendEmail'. Generate plain text message statements only; do not attempt to write raw HTML styles.
-    5. CRITICAL: If the user tells you a new fact, mapping, or rule to 'keep in mind', ALWAYS execute the 'saveToMemory' tool. Do not just verbally acknowledge it.`;
+    4. If asked to send an email, use 'sendEmail'. Generate plain text message statements only.
+    5. CRITICAL: If the user tells you a new fact, mapping, or rule to 'keep in mind', ALWAYS execute the 'saveToMemory' tool.`;
 
     addMessage({ role: "user", content: userPrompt });
 
@@ -285,20 +313,16 @@ async function runAgent(userPrompt) {
     ];
 
     try {
-        const response = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
-            messages: messages,
-            tools: tools,
-            tool_choice: "auto"
-        });
-
-        let responseMessage = response.choices[0].message;
+        // 1. Send conversation to Local Llama 3.2
+        let responseMessage = await queryLocalModel(messages, true);
         let finalOutput = responseMessage.content;
         
-        if (responseMessage.tool_calls) {
+        // 2. Check if the local AI wants to use a tool
+        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
             addMessage(responseMessage);
             messages.push(responseMessage);
 
+            // Execute the tools locally
             for (const toolCall of responseMessage.tool_calls) {
                 const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
                 const toolMessage = { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse };
@@ -306,19 +330,16 @@ async function runAgent(userPrompt) {
                 messages.push(toolMessage);
             }
 
-            const finalResponse = await groq.chat.completions.create({
-                model: "llama-3.3-70b-versatile",
-                messages: messages
-            });
-            responseMessage = finalResponse.choices[0].message;
+            // 3. Send the tool results back to the AI for a final summary
+            responseMessage = await queryLocalModel(messages, false);
             finalOutput = responseMessage.content;
         }
 
         if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
-        return finalOutput;
+        return finalOutput || "Task executed successfully.";
     } catch (error) {
         console.error("[AGENT ERROR]", error);
-        return "System failure: Agent could not process the request.";
+        return "System failure: Local AI engine offline or unreachable. Please ensure ./llama-server is running.";
     }
 }
 
