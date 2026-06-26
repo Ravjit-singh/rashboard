@@ -1,4 +1,3 @@
-// src/localAgent.js (Formerly groqAgent.js)
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
@@ -45,80 +44,18 @@ function retrieveRelevantMemories(prompt, memoryObj) {
     return contextString;
 }
 
-const tools = [
-    {
-        type: "function",
-        function: {
-            name: "getProjectStatus",
-            description: "Get the live URL and the secret environment vault keys for a mapped project.",
-            parameters: {
-                type: "object",
-                properties: { projectName: { type: "string", description: "The exact name of the project." } },
-                required: ["projectName"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "saveToMemory",
-            description: "Trigger this IMMEDIATELY to save a fact permanently anytime the user says 'remember', 'keep in mind', 'note', or dictates a structural rule.",
-            parameters: {
-                type: "object",
-                properties: {
-                    topic: { type: "string", description: "A short 1-3 word key." },
-                    information: { type: "string", description: "The detailed info to save." }
-                },
-                required: ["topic", "information"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "removeFromMemory",
-            description: "Use ONLY when the user commands you to 'forget', 'delete', or 'remove' a previously saved memory.",
-            parameters: {
-                type: "object",
-                properties: { topic: { type: "string", description: "The exact topic name of the memory to delete." } },
-                required: ["topic"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "sendEmail",
-            description: "Dispatches an email via a standard local design template. Generate plain text content for the body only; the system wrapper formats it automatically.",
-            parameters: {
-                type: "object",
-                properties: {
-                    to: { type: "string", description: "The recipient's target email address." },
-                    subject: { type: "string", description: "A summary sentence for the email header context." },
-                    body: { type: "string", description: "The text data report, summary, or details to compile inside the message container." }
-                },
-                required: ["to", "subject", "body"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "querySupabaseDatabase",
-            description: "Fetch live data from Supabase. Use this to count rows, query tables, or when the user confirms a table name.",
-            parameters: {
-                type: "object",
-                properties: {
-                    projectName: { type: "string", description: "The exact name of the project." },
-                    tableName: { type: "string", description: "The exact name of the database table." },
-                    selectQuery: { type: "string", description: "Set to 'count' to get total rows, or '*' to get row data." },
-                    limit: { type: "number", description: "Max rows to fetch. Default is 5." }
-                },
-                required: ["projectName", "tableName"]
-            }
-        }
-    }
-];
+// ⚡ EXPLICIT TOOL SCHEMAS FOR THE NATIVE ENGINE
+const toolsInstructions = `
+[AVAILABLE TOOLS]
+- getProjectStatus { "projectName": "string" }
+- saveToMemory { "topic": "string", "information": "string" }
+- removeFromMemory { "topic": "string" }
+- sendEmail { "to": "string", "subject": "string", "body": "string" }
+- querySupabaseDatabase { "projectName": "string", "tableName": "string", "selectQuery": "string", "limit": number }
+
+To use a tool, you MUST use this exact syntax at the very end of your response:
+<|tool_call>call:FunctionName{"key": "value"}
+`;
 
 async function executeTool(toolName, toolArgs) {
     console.log(`[AGENT] Executing tool: ${toolName}`);
@@ -180,10 +117,16 @@ async function executeTool(toolName, toolArgs) {
         }
     }
 
+    // Database / Project Logic
     const targetName = (toolArgs.projectName || '').toLowerCase().replace(/\s+/g, '');
     const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase().replace(/\s+/g, '') === targetName);
     
-    if (!project) return JSON.stringify({ error: `Project '${toolArgs.projectName}' not found in the synced UI vault.` });
+    // Fallback if model just says {table: "assets"} without projectName
+    if (!project && toolName === "querySupabaseDatabase") {
+        return JSON.stringify({ error: "Please specify the 'projectName' alongside the 'tableName'." });
+    }
+    
+    if (!project) return JSON.stringify({ error: `Project not found in the synced UI vault.` });
 
     if (toolName === "getProjectStatus") {
         return JSON.stringify({ name: project.name, liveUrl: project.liveUrl, vaultKeys: project.tabs || {}, status: "Found" });
@@ -251,14 +194,12 @@ async function executeTool(toolName, toolArgs) {
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
+// ⚡ GEMMA RAW-TEXT TOOL INTERCEPTOR
 async function streamLocalAPI(messages, res) {
     const payload = {
         model: "gemma-4-e2b-it",
         messages: messages,
-        temperature: 0.1,
-        stream: true, 
-        tools: tools,
-        tool_choice: "auto"
+        temperature: 0.1
     };
 
     const fetchRes = await fetch(LOCAL_API_URL, {
@@ -273,6 +214,8 @@ async function streamLocalAPI(messages, res) {
     const decoder = new TextDecoder('utf-8');
     
     let fullText = "";
+    let visibleText = "";
+    let isToolCall = false;
     let toolCalls = [];
 
     while (true) {
@@ -290,16 +233,15 @@ async function streamLocalAPI(messages, res) {
 
                     if (delta.content) {
                         fullText += delta.content;
-                        if (res) res.write(delta.content);
-                    }
 
-                    if (delta.tool_calls) {
-                        for (const tc of delta.tool_calls) {
-                            if (!toolCalls[tc.index]) {
-                                toolCalls[tc.index] = { id: tc.id, type: "function", function: { name: tc.function?.name || "", arguments: "" } };
-                            }
-                            if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name;
-                            if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
+                        // Mute the stream the millisecond Gemma tries to call a tool
+                        if (fullText.includes("<|tool_call>") || fullText.includes("</tool_call>")) {
+                            isToolCall = true;
+                        }
+
+                        if (!isToolCall) {
+                            visibleText += delta.content;
+                            if (res) res.write(delta.content);
                         }
                     }
                 } catch (e) {}
@@ -307,7 +249,25 @@ async function streamLocalAPI(messages, res) {
         }
     }
     
-    return { content: fullText, tool_calls: toolCalls.length > 0 ? toolCalls : null };
+    // Post-Process Gemma's Raw Text Tool Call
+    const toolMatch = fullText.match(/<[|/]tool_call>call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*\})/);
+    if (toolMatch) {
+        const funcName = toolMatch[1];
+        let argString = toolMatch[2];
+
+        // Auto-fix unquoted JSON keys (e.g. {table: "assets"} -> {"table": "assets"})
+        argString = argString.replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3');
+
+        toolCalls.push({
+            id: "call_" + Math.random().toString(36).substr(2, 9),
+            type: "function",
+            function: { name: funcName, arguments: argString }
+        });
+
+        return { content: visibleText, tool_calls: toolCalls };
+    }
+
+    return { content: fullText, tool_calls: null };
 }
 
 async function runAgent(userPrompt, res) { 
@@ -318,14 +278,12 @@ async function runAgent(userPrompt, res) {
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
 
     const systemPrompt = `You are RASHBOARD-AI, a strict, local backend engineering assistant.
-    Your ONLY purpose is to manage the user's infrastructure. Do not make up answers.
-    
+    Your ONLY purpose is to manage the user's infrastructure.
+    ${toolsInstructions}
     [KNOWN PROJECTS]: ${knownProjects}
     [SAVED MEMORIES]: ${activeMemoryContext}`;
 
-    const pinnedPrompt = `SYSTEM REMINDER: You possess the 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory' tools. NEVER state that you lack these abilities. 
-    
-    USER COMMAND: ${userPrompt}`;
+    const pinnedPrompt = `USER COMMAND: ${userPrompt}`;
 
     addMessage({ role: "user", content: pinnedPrompt }); 
 
@@ -340,12 +298,24 @@ async function runAgent(userPrompt, res) {
         
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
             
-            addMessage({ role: "assistant", tool_calls: responseMessage.tool_calls });
-            messages.push({ role: "assistant", tool_calls: responseMessage.tool_calls });
+            if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
 
             for (const toolCall of responseMessage.tool_calls) {
-                const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
-                const toolMessage = { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse };
+                let parsedArgs = {};
+                try { 
+                    parsedArgs = JSON.parse(toolCall.function.arguments); 
+                } catch (e) {
+                    console.error("[AGENT] JSON Parse Error on args:", toolCall.function.arguments);
+                }
+
+                const functionResponse = await executeTool(toolCall.function.name, parsedArgs);
+
+                // ⚡ Format the tool result as a SYSTEM FEEDBACK message so Gemma understands it
+                const toolMessage = { 
+                    role: "user", 
+                    content: `[SYSTEM FEEDBACK: TOOL EXECUTION RESULT]\nFunction '${toolCall.function.name}' returned:\n${functionResponse}\n\nPlease synthesize this information and provide a final answer to the user.` 
+                };
+                
                 addMessage(toolMessage);
                 messages.push(toolMessage);
             }
