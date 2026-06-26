@@ -5,22 +5,54 @@
   },
   {
     "role": "user",
-    "content": "[DATABASE/TOOL RESULT]\n{\"error\":\"The table 'professionals' does not exist or access was denied.\",\"actualTablesInDatabase\":[\"professionals\"]}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's original request naturally. DO NOT repeat the JSON data. DO NOT output system instructions."
+    "content": "[SYSTEM TOOL RESULT]\n{\"tableName\":\"professionals\",\"queryType\":\"count\",\"totalRowsInDatabase\":3}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the JSON data. DO NOT output system instructions."
   },
   {
     "role": "user",
-    "content": "USER COMMAND: Tell me number of rows in assets table in devstore"
+    "content": "USER COMMAND: Tell me number of rows in professionals table in service linkup"
   },
   {
     "role": "user",
-    "content": "[DATABASE/TOOL RESULT]\n{\"error\":\"The table 'assets' does not exist or access was denied.\",\"actualTablesInDatabase\":\"Could not fetch table list.\"}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's original request naturally. DO NOT repeat the JSON data. DO NOT output system instructions."
+    "content": "[SYSTEM TOOL RESULT]\n{\"tableName\":\"professionals\",\"queryType\":\"count\",\"totalRowsInDatabase\":3}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the JSON data. DO NOT output system instructions."
   },
   {
     "role": "user",
-    "content": "USER COMMAND: Awesome send this above information to juthabanda@gmail.com with subject \"service linkup professionals\""
+    "content": "USER COMMAND: Tell me about Aditya Kumar from service linkup"
   },
   {
     "role": "user",
-    "content": "[DATABASE/TOOL RESULT]\n{\"success\":\"Email layout successfully constructed and sent.\"}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's original request naturally. DO NOT repeat the JSON data. DO NOT output system instructions."
+    "content": "[SYSTEM TOOL RESULT]\n{\"tableName\":\"professionals\",\"rowsReturned\":3,\"data\":[{\"id\":\"c3c4b816-94b1-4542-87e4-5e6261c52579\",\"full_name\":\"Ravjit Singh\",\"email\":\"ravjitsingh4444@gmail.com\",\"phone\":\"7087566133\",\"trade\":\"Developer\",\"city\":\"Chandigarh\",\"area_covered\":null,\"bio\":\"I am Ravjit Singh a full stack developer to bring your ideas into reality \\n\\nCheck my work\\nravjitsingh.ct.ws\",\"avatar_url\":\"https://drive.google.com/uc?export=view&id=1nAyAKJPoetIxJ2Qd8IghoFtAcUk40rSx\",\"experience_years\":4,\"base_price\":\"Contact for price\",\"rating\":0,\"is_verified\":true,\"created_at\":\"2026-04-27T17:04:30.14918+00:00\",\"password\":\"r@Vi4444#\",\"contact_clicks\":18,\"portfolio_urls\":[\"https://drive.google.com/uc?export=view&id=12QX2HqqKy6-rhEJn1LZ2QgEndkvVbMeo\",\"https://drive.google.com/uc?export=view&id=11Vr_Eh1eiJYFuS1SwbTxeF4ZhL99nH_r\"],\"report_reason\":null,\"is_banned\":false},{\"id\":\"8192d78a-4f7b-4f1c-b97e-0f746f3acdf9\",\"full_name\":\"Aditya Kumar\",\"email\":\"adityasharma90411@gmail.com\",\"phone\":\"7710149081\",\"trade\":\"Developer\",\"city\":\"Chandigarh\",\"area_covered\":null,\"bio\":\"I am Aditya Kumar a full stack developer to bring your ideas into reality\\n\\nCheck my work\",\"avatar_url\":\"https://drive.google.com/uc?export=view&id=1U-FOGoPX2F_86udQOXtTNIfCyOfHnagf\",\"experience_years\":4,\"base_price\":\"Contact for price\",\"rating\":0,\"is_verified\":true,\"created_at\":\"2026-04-28T08:24:25.487216+00:00\",\"password\":\"adidalla\",\"contact_clicks\":10,\"portfolio_urls\":[],\"report_reason\":null,\"is_banned\":false},{\"id\":\"fed0f564-d982-49f2-87bd-fb7497c46d0f\",\"full_name\":\"Vipin kumar \",\"email\":\"vk957657@gmail.com\",\"phone\":\"9996628958\",\"trade\":\"Video editing and script writing \",\"city\":\"Panchkula\",\"area_covered\":null,\"bio\":\"\",\"avatar_url\":null,\"experience_years\":1,\"base_price\":\"Contact for price\",\"rating\":0,\"is_verified\":true,\"created_at\":\"2026-05-07T11:28:07.9695+00:00\",\"password\":\"Vipin@2007\",\"contact_clicks\":2,\"portfolio_urls\":[],\"report_reason\":null,\"is_banned\":false}]}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the JSON data. DO NOT output system instructions."
+  },
+  {
+    "role": "user",
+    "content": "USER COMMAND: Tell me about Aditya Kumar from service linkup"
+  },
+  {
+    "role": "assistant",
+    "content": "Aditya Kumar is a full stack developer based in Chandigarh who has 4 years of experience. He is looking to bring his ideas into reality through his work."
+  },
+  {
+    "role": "user",
+    "content": "USER COMMAND: Awesome now mail this information to technicalgamer142044@gmail.com@gmail.com with subject \"Supabase query fetching\""
+  },
+  {
+    "role": "user",
+    "content": "[SYSTEM TOOL RESULT]\n{\"success\":\"Email successfully sent.\"}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the JSON data. DO NOT output system instructions."
+  },
+  {
+    "role": "user",
+    "content": "USER COMMAND: Awesome now mail this information to technicalgamer142044@gmail.com with subject \"Supabase query fetching\""
+  },
+  {
+    "role": "user",
+    "content": "[SYSTEM TOOL RESULT]\n{\"success\":\"Email successfully sent.\"}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the JSON data. DO NOT output system instructions."
+  },
+  {
+    "role": "user",
+    "content": "USER COMMAND: Awesome now mail this information to technicalgamer142044@gmail.com with subject \"Supabase query fetching\""
+  },
+  {
+    "role": "user",
+    "content": "[SYSTEM TOOL RESULT]\n{\"success\":\"Email successfully sent.\"}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the JSON data. DO NOT output system instructions."
   }
 ]

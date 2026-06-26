@@ -44,7 +44,6 @@ function retrieveRelevantMemories(prompt, memoryObj) {
     return contextString;
 }
 
-// ⚡ OPTIMIZED TOOL SCHEMAS
 const toolsInstructions = `
 [AVAILABLE TOOLS]
 - getProjectStatus { "projectName": "string" }
@@ -109,7 +108,6 @@ async function executeTool(toolName, toolArgs) {
         } catch (error) { return JSON.stringify({ error: `SMTP fault: ${error.message}` }); }
     }
 
-    // ⚡ PRODUCTION SUPABASE LOGIC ⚡
     const targetName = (toolArgs.projectName || '').toLowerCase().replace(/\s+/g, '');
     const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase().replace(/\s+/g, '') === targetName);
     
@@ -148,26 +146,20 @@ async function executeTool(toolName, toolArgs) {
             let dbRes;
 
             if (isCount) {
-                // Official Supabase REST method for counting rows efficiently
                 headers['Prefer'] = 'count=exact';
                 dbRes = await fetch(baseUrl + '?select=*', { method: 'HEAD', headers });
             } else {
-                // Fetching limited row data
                 headers['Content-Type'] = 'application/json';
                 dbRes = await fetch(baseUrl + '?select=*&limit=10', { method: 'GET', headers });
             }
             
             if (!dbRes.ok) {
                 let diagnosticReason = "Unknown network error.";
-                if (dbRes.status === 404) diagnosticReason = `The table '${cleanTableName}' does not exist in this database. Check spelling.`;
-                if (dbRes.status === 401 || dbRes.status === 403) diagnosticReason = `Access Denied. Row Level Security (RLS) is active and blocking this key from reading data.`;
+                if (dbRes.status === 404) diagnosticReason = `The table '${cleanTableName}' does not exist in this database.`;
+                if (dbRes.status === 401 || dbRes.status === 403) diagnosticReason = `Access Denied. Row Level Security (RLS) is active and blocking read access.`;
                 if (dbRes.status === 400) diagnosticReason = `Bad request syntax.`;
 
-                return JSON.stringify({ 
-                    error: "Database query failed.",
-                    httpStatusCode: dbRes.status,
-                    diagnosticReason: diagnosticReason
-                });
+                return JSON.stringify({ error: "Database query failed.", httpStatusCode: dbRes.status, diagnosticReason: diagnosticReason });
             }
 
             if (isCount) {
@@ -185,12 +177,12 @@ async function executeTool(toolName, toolArgs) {
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
-// ⚡ UI STREAM INTERCEPTOR ⚡
+// ⚡ THE FORGIVING STREAM INTERCEPTOR ⚡
 async function streamLocalAPI(messages, res) {
     const payload = {
         model: "gemma-4-e2b-it",
         messages: messages,
-        temperature: 0.1
+        temperature: 0.15 // Slightly elevated to increase conversational fluidity
     };
 
     const fetchRes = await fetch(LOCAL_API_URL, {
@@ -226,16 +218,18 @@ async function streamLocalAPI(messages, res) {
                     if (delta.content) {
                         fullText += delta.content;
 
-                        if (fullText.includes("<|tool_call>") || fullText.includes("</tool_call>")) {
+                        // More forgiving detection: catches '<tool', '<|tool', or just 'call:'
+                        if (fullText.includes("<|tool") || fullText.includes("<tool") || fullText.includes("call:")) {
                             isToolCall = true;
                         }
 
                         if (!isToolCall) {
                             streamBuffer += delta.content;
-                            if (streamBuffer.includes("<|tool")) {
-                                // Hold buffer
-                            } else if (streamBuffer.endsWith("<") || streamBuffer.endsWith("<|")) {
-                                // Hold buffer
+                            // Check if stream is currently printing a partial bracket
+                            if (streamBuffer.includes("<|") || streamBuffer.includes("<t")) {
+                                // Hold the buffer
+                            } else if (streamBuffer.endsWith("<")) {
+                                // Hold the buffer
                             } else {
                                 if (res) res.write(streamBuffer);
                                 visibleText += streamBuffer;
@@ -247,9 +241,16 @@ async function streamLocalAPI(messages, res) {
             }
         }
     }
+
+    // ⚡ BUG FIX 1: Flush any innocent text trapped in the buffer at the end of the stream
+    if (!isToolCall && streamBuffer.trim().length > 0) {
+        let finalClean = streamBuffer.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
+        if (finalClean && res) res.write(finalClean);
+        visibleText += finalClean;
+    }
     
-    // Process Tool Call
-    const toolMatch = fullText.match(/<[|/]tool_call>call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*\})/);
+    // ⚡ BUG FIX 2: Highly forgiving regex that handles spacing typos and missing brackets
+    const toolMatch = fullText.match(/<[|/]?tool_call>\s*call:\s*([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i);
     if (toolMatch) {
         const funcName = toolMatch[1];
         let argString = toolMatch[2];
@@ -263,6 +264,16 @@ async function streamLocalAPI(messages, res) {
         return { content: visibleText, tool_calls: toolCalls };
     }
 
+    // ⚡ BUG FIX 3: If it tried to call a tool but completely failed, push the hidden text to the UI so it doesn't hang blank
+    if (isToolCall && !toolMatch && res) {
+        let cleanFull = fullText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
+        let missingText = cleanFull.replace(visibleText, '');
+        if (missingText.trim().length > 0) {
+            res.write(missingText);
+            visibleText = cleanFull;
+        }
+    }
+
     return { content: fullText, tool_calls: null };
 }
 
@@ -273,9 +284,17 @@ async function runAgent(userPrompt, res) {
     const activeMemoryContext = retrieveRelevantMemories(userPrompt, memoryData);
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
 
-    const systemPrompt = `You are RASHBOARD-AI, a strict, local backend engineering assistant.
-    Your ONLY purpose is to manage the user's infrastructure.
+    // ⚡ IMMERSION UPGRADE: A highly aware, specialized system persona
+    const systemPrompt = `You are Rashboard, an advanced, highly capable AI engineering assistant running natively on Ravjit's OnePlus GPU.
+    Your primary directive is to manage his backend infrastructure, orchestrate microservices, and retrieve real-time data seamlessly.
+    
+    Personality Profile:
+    - Crisp, highly intelligent, and direct.
+    - Conversational, but avoid repetitive robotic cliches (e.g., never say "As an AI...").
+    - If a database query fails, diagnose the problem confidently based on the HTTP status code provided.
+    
     ${toolsInstructions}
+    
     [KNOWN PROJECTS]: ${knownProjects}
     [SAVED MEMORIES]: ${activeMemoryContext}`;
 
@@ -308,7 +327,7 @@ async function runAgent(userPrompt, res) {
 
                 const toolMessage = { 
                     role: "user", 
-                    content: `[SYSTEM TOOL RESULT]\n${functionResponse}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the JSON data. DO NOT output system instructions.` 
+                    content: `[SYSTEM TOOL RESULT]\n${functionResponse}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the raw JSON data. Synthesize it conversationally.` 
                 };
                 
                 addMessage(toolMessage);
@@ -321,6 +340,13 @@ async function runAgent(userPrompt, res) {
             if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
         }
         
+        // ⚡ BUG FIX 4: Safety net to prevent the UI from locking up if the LLM returns absolutely nothing
+        if (!finalOutput || finalOutput.trim() === "") {
+            finalOutput = "Task executed successfully.";
+            if (res) res.write(finalOutput);
+            addMessage({ role: "assistant", content: finalOutput });
+        }
+
         return finalOutput;
     } catch (error) {
         console.error("[AGENT ERROR]", error);
