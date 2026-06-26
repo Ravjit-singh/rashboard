@@ -44,7 +44,6 @@ function retrieveRelevantMemories(prompt, memoryObj) {
     return contextString;
 }
 
-// ⚡ EXPLICIT TOOL SCHEMAS FOR THE NATIVE ENGINE
 const toolsInstructions = `
 [AVAILABLE TOOLS]
 - getProjectStatus { "projectName": "string" }
@@ -83,10 +82,10 @@ async function executeTool(toolName, toolArgs) {
     if (toolName === "sendEmail") {
         try {
             if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
-                return JSON.stringify({ error: "Mail configurations missing from your system environmental variables." });
+                return JSON.stringify({ error: "Mail configurations missing from system." });
             }
             if (!fs.existsSync(TEMPLATE_FILE)) {
-                return JSON.stringify({ error: "Local html blueprint template not discovered in file path storage." });
+                return JSON.stringify({ error: "Local html blueprint template missing." });
             }
 
             let htmlLayout = fs.readFileSync(TEMPLATE_FILE, 'utf8');
@@ -111,19 +110,18 @@ async function executeTool(toolName, toolArgs) {
                 html: htmlLayout 
             });
 
-            return JSON.stringify({ success: `Email layout successfully constructed and routed to destination inbox.` });
+            return JSON.stringify({ success: `Email layout successfully constructed and sent.` });
         } catch (error) {
-            return JSON.stringify({ error: `SMTP server socket initialization fault: ${error.message}` });
+            return JSON.stringify({ error: `SMTP server fault: ${error.message}` });
         }
     }
 
-    // Database / Project Logic
+    // ⚡ SUPERCHARGED DATABASE LOGIC ⚡
     const targetName = (toolArgs.projectName || '').toLowerCase().replace(/\s+/g, '');
     const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase().replace(/\s+/g, '') === targetName);
     
-    // Fallback if model just says {table: "assets"} without projectName
     if (!project && toolName === "querySupabaseDatabase") {
-        return JSON.stringify({ error: "Please specify the 'projectName' alongside the 'tableName'." });
+        return JSON.stringify({ error: "Please specify the exact 'projectName' alongside the 'tableName'." });
     }
     
     if (!project) return JSON.stringify({ error: `Project not found in the synced UI vault.` });
@@ -145,10 +143,12 @@ async function executeTool(toolName, toolArgs) {
         });
 
         const activeKey = serviceKey || anonKey;
-        if (!supaUrl || !activeKey) return JSON.stringify({ error: "Missing Supabase URL or Key in the project's Rashboard vault." });
+        if (!supaUrl || !activeKey) return JSON.stringify({ error: "Missing Supabase URL or Key in vault." });
 
+        // Force-clean the table name to prevent AI JSON quote injection
+        const cleanTableName = (toolArgs.tableName || '').replace(/[^a-zA-Z0-9_]/g, '');
         const cleanSupaUrl = supaUrl.split('/rest/v1')[0].replace(/\/$/, '');
-        const baseUrl = cleanSupaUrl + '/rest/v1/' + toolArgs.tableName;
+        const baseUrl = cleanSupaUrl + '/rest/v1/' + cleanTableName;
         const limit = Math.min(toolArgs.limit || 5, 20);
         
         try {
@@ -176,25 +176,24 @@ async function executeTool(toolName, toolArgs) {
                 } catch(e) {}
 
                 return JSON.stringify({ 
-                    error: `The table '${toolArgs.tableName}' does not exist.`,
-                    actualTablesInDatabase: availableTables.length > 0 ? availableTables : "Could not fetch table list.",
-                    instruction: "Tell the user the table wasn't found, list the 'actualTablesInDatabase', and ask them to confirm which one they meant."
+                    error: `The table '${cleanTableName}' does not exist or access was denied.`,
+                    actualTablesInDatabase: availableTables.length > 0 ? availableTables : "Could not fetch table list."
                 });
             }
 
             if (toolArgs.selectQuery === 'count') {
                 const range = dbRes.headers.get('content-range') || '0-0/0';
-                return JSON.stringify({ tableName: toolArgs.tableName, totalRowCount: parseInt(range.split('/')[1] || 0, 10) });
+                return JSON.stringify({ tableName: cleanTableName, totalRowCount: parseInt(range.split('/')[1] || 0, 10) });
             } else {
                 const data = await dbRes.json();
-                return JSON.stringify({ tableName: toolArgs.tableName, rowsReturned: data.length, data: data });
+                return JSON.stringify({ tableName: cleanTableName, rowsReturned: data.length, data: data });
             }
         } catch (err) { return JSON.stringify({ error: "Failed to establish network connection to Database." }); }
     }
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
-// ⚡ GEMMA RAW-TEXT TOOL INTERCEPTOR
+// ⚡ BULLETPROOF STREAM INTERCEPTOR ⚡
 async function streamLocalAPI(messages, res) {
     const payload = {
         model: "gemma-4-e2b-it",
@@ -216,6 +215,7 @@ async function streamLocalAPI(messages, res) {
     let fullText = "";
     let visibleText = "";
     let isToolCall = false;
+    let streamBuffer = "";
     let toolCalls = [];
 
     while (true) {
@@ -234,14 +234,23 @@ async function streamLocalAPI(messages, res) {
                     if (delta.content) {
                         fullText += delta.content;
 
-                        // Mute the stream the millisecond Gemma tries to call a tool
                         if (fullText.includes("<|tool_call>") || fullText.includes("</tool_call>")) {
                             isToolCall = true;
                         }
 
                         if (!isToolCall) {
-                            visibleText += delta.content;
-                            if (res) res.write(delta.content);
+                            streamBuffer += delta.content;
+                            // Check if the stream is starting to print the tool call syntax
+                            if (streamBuffer.includes("<|tool")) {
+                                // Hold the buffer, do not stream to UI
+                            } else if (streamBuffer.endsWith("<") || streamBuffer.endsWith("<|")) {
+                                // Hold just in case
+                            } else {
+                                // Safe to output to the user UI
+                                if (res) res.write(streamBuffer);
+                                visibleText += streamBuffer;
+                                streamBuffer = "";
+                            }
                         }
                     }
                 } catch (e) {}
@@ -249,21 +258,18 @@ async function streamLocalAPI(messages, res) {
         }
     }
     
-    // Post-Process Gemma's Raw Text Tool Call
+    // Process Tool Call
     const toolMatch = fullText.match(/<[|/]tool_call>call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*\})/);
     if (toolMatch) {
         const funcName = toolMatch[1];
         let argString = toolMatch[2];
-
-        // Auto-fix unquoted JSON keys (e.g. {table: "assets"} -> {"table": "assets"})
-        argString = argString.replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3');
+        argString = argString.replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3'); // Fix unquoted JSON keys
 
         toolCalls.push({
             id: "call_" + Math.random().toString(36).substr(2, 9),
             type: "function",
             function: { name: funcName, arguments: argString }
         });
-
         return { content: visibleText, tool_calls: toolCalls };
     }
 
@@ -310,10 +316,10 @@ async function runAgent(userPrompt, res) {
 
                 const functionResponse = await executeTool(toolCall.function.name, parsedArgs);
 
-                // ⚡ Format the tool result as a SYSTEM FEEDBACK message so Gemma understands it
+                // ⚡ THE PARROT FIX: Extremely strict prompt forcing it to speak naturally ⚡
                 const toolMessage = { 
                     role: "user", 
-                    content: `[SYSTEM FEEDBACK: TOOL EXECUTION RESULT]\nFunction '${toolCall.function.name}' returned:\n${functionResponse}\n\nPlease synthesize this information and provide a final answer to the user.` 
+                    content: `[DATABASE/TOOL RESULT]\n${functionResponse}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's original request naturally. DO NOT repeat the JSON data. DO NOT output system instructions.` 
                 };
                 
                 addMessage(toolMessage);
