@@ -44,15 +44,16 @@ function retrieveRelevantMemories(prompt, memoryObj) {
     return contextString;
 }
 
+// ⚡ OPTIMIZED TOOL SCHEMAS
 const toolsInstructions = `
 [AVAILABLE TOOLS]
 - getProjectStatus { "projectName": "string" }
 - saveToMemory { "topic": "string", "information": "string" }
 - removeFromMemory { "topic": "string" }
 - sendEmail { "to": "string", "subject": "string", "body": "string" }
-- querySupabaseDatabase { "projectName": "string", "tableName": "string", "selectQuery": "string", "limit": number }
+- querySupabaseDatabase { "projectName": "string", "tableName": "string", "queryType": "count_only" or "fetch_data" }
 
-To use a tool, you MUST use this exact syntax at the very end of your response:
+CRITICAL RULE: To use a tool, you MUST output this exact syntax at the very end of your response:
 <|tool_call>call:FunctionName{"key": "value"}
 `;
 
@@ -81,19 +82,13 @@ async function executeTool(toolName, toolArgs) {
 
     if (toolName === "sendEmail") {
         try {
-            if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
-                return JSON.stringify({ error: "Mail configurations missing from system." });
-            }
-            if (!fs.existsSync(TEMPLATE_FILE)) {
-                return JSON.stringify({ error: "Local html blueprint template missing." });
-            }
+            if (!process.env.SMTP_HOST || !process.env.SMTP_USER) return JSON.stringify({ error: "Mail configurations missing." });
+            if (!fs.existsSync(TEMPLATE_FILE)) return JSON.stringify({ error: "Local HTML template missing." });
 
             let htmlLayout = fs.readFileSync(TEMPLATE_FILE, 'utf8');
             const cleanBodyHtml = toolArgs.body.split('\n').map(p => p.trim() ? `<p>${p.trim()}</p>` : '').join('');
             
-            htmlLayout = htmlLayout
-                .replace(/{{SUBJECT}}/g, toolArgs.subject)
-                .replace(/{{BODY}}/g, cleanBodyHtml);
+            htmlLayout = htmlLayout.replace(/{{SUBJECT}}/g, toolArgs.subject).replace(/{{BODY}}/g, cleanBodyHtml);
 
             const transporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST,
@@ -110,18 +105,16 @@ async function executeTool(toolName, toolArgs) {
                 html: htmlLayout 
             });
 
-            return JSON.stringify({ success: `Email layout successfully constructed and sent.` });
-        } catch (error) {
-            return JSON.stringify({ error: `SMTP server fault: ${error.message}` });
-        }
+            return JSON.stringify({ success: `Email successfully sent.` });
+        } catch (error) { return JSON.stringify({ error: `SMTP fault: ${error.message}` }); }
     }
 
-    // ⚡ SUPERCHARGED DATABASE LOGIC ⚡
+    // ⚡ PRODUCTION SUPABASE LOGIC ⚡
     const targetName = (toolArgs.projectName || '').toLowerCase().replace(/\s+/g, '');
     const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase().replace(/\s+/g, '') === targetName);
     
     if (!project && toolName === "querySupabaseDatabase") {
-        return JSON.stringify({ error: "Please specify the exact 'projectName' alongside the 'tableName'." });
+        return JSON.stringify({ error: "Please specify the exact 'projectName' alongside the 'tableName' so I know which database to connect to." });
     }
     
     if (!project) return JSON.stringify({ error: `Project not found in the synced UI vault.` });
@@ -143,57 +136,56 @@ async function executeTool(toolName, toolArgs) {
         });
 
         const activeKey = serviceKey || anonKey;
-        if (!supaUrl || !activeKey) return JSON.stringify({ error: "Missing Supabase URL or Key in vault." });
+        if (!supaUrl || !activeKey) return JSON.stringify({ error: "Missing Supabase URL or Authentication Key in the vault." });
 
-        // Force-clean the table name to prevent AI JSON quote injection
         const cleanTableName = (toolArgs.tableName || '').replace(/[^a-zA-Z0-9_]/g, '');
         const cleanSupaUrl = supaUrl.split('/rest/v1')[0].replace(/\/$/, '');
         const baseUrl = cleanSupaUrl + '/rest/v1/' + cleanTableName;
-        const limit = Math.min(toolArgs.limit || 5, 20);
+        const isCount = toolArgs.queryType === 'count_only' || toolArgs.queryType === 'count';
         
         try {
-            const headers = { 'apikey': activeKey, 'Authorization': `Bearer ${activeKey}`, 'Content-Type': 'application/json' };
-            let fetchUrl = baseUrl;
+            const headers = { 'apikey': activeKey, 'Authorization': `Bearer ${activeKey}` };
+            let dbRes;
 
-            if (toolArgs.selectQuery === 'count') {
-                headers['Prefer'] = 'count=exact'; fetchUrl += '?select=*&limit=1'; 
+            if (isCount) {
+                // Official Supabase REST method for counting rows efficiently
+                headers['Prefer'] = 'count=exact';
+                dbRes = await fetch(baseUrl + '?select=*', { method: 'HEAD', headers });
             } else {
-                fetchUrl += `?select=${toolArgs.selectQuery || '*'}&limit=${limit}`;
+                // Fetching limited row data
+                headers['Content-Type'] = 'application/json';
+                dbRes = await fetch(baseUrl + '?select=*&limit=10', { method: 'GET', headers });
             }
-
-            const dbRes = await fetch(fetchUrl, { headers });
             
             if (!dbRes.ok) {
-                let availableTables = [];
-                try {
-                    const schemaRes = await fetch(cleanSupaUrl + '/rest/v1/', { headers });
-                    if (schemaRes.ok) {
-                        const schemaData = await schemaRes.json();
-                        availableTables = Object.keys(schemaData.paths || {})
-                            .map(p => p.replace('/', '').split('?')[0])
-                            .filter(n => n && n !== 'rpc' && n !== 'introspection');
-                    }
-                } catch(e) {}
+                let diagnosticReason = "Unknown network error.";
+                if (dbRes.status === 404) diagnosticReason = `The table '${cleanTableName}' does not exist in this database. Check spelling.`;
+                if (dbRes.status === 401 || dbRes.status === 403) diagnosticReason = `Access Denied. Row Level Security (RLS) is active and blocking this key from reading data.`;
+                if (dbRes.status === 400) diagnosticReason = `Bad request syntax.`;
 
                 return JSON.stringify({ 
-                    error: `The table '${cleanTableName}' does not exist or access was denied.`,
-                    actualTablesInDatabase: availableTables.length > 0 ? availableTables : "Could not fetch table list."
+                    error: "Database query failed.",
+                    httpStatusCode: dbRes.status,
+                    diagnosticReason: diagnosticReason
                 });
             }
 
-            if (toolArgs.selectQuery === 'count') {
+            if (isCount) {
                 const range = dbRes.headers.get('content-range') || '0-0/0';
-                return JSON.stringify({ tableName: cleanTableName, totalRowCount: parseInt(range.split('/')[1] || 0, 10) });
+                const totalCount = parseInt(range.split('/')[1] || 0, 10);
+                return JSON.stringify({ tableName: cleanTableName, queryType: "count", totalRowsInDatabase: totalCount });
             } else {
                 const data = await dbRes.json();
                 return JSON.stringify({ tableName: cleanTableName, rowsReturned: data.length, data: data });
             }
-        } catch (err) { return JSON.stringify({ error: "Failed to establish network connection to Database." }); }
+        } catch (err) { 
+            return JSON.stringify({ error: "Failed to establish network connection to the Database." }); 
+        }
     }
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
-// ⚡ BULLETPROOF STREAM INTERCEPTOR ⚡
+// ⚡ UI STREAM INTERCEPTOR ⚡
 async function streamLocalAPI(messages, res) {
     const payload = {
         model: "gemma-4-e2b-it",
@@ -240,13 +232,11 @@ async function streamLocalAPI(messages, res) {
 
                         if (!isToolCall) {
                             streamBuffer += delta.content;
-                            // Check if the stream is starting to print the tool call syntax
                             if (streamBuffer.includes("<|tool")) {
-                                // Hold the buffer, do not stream to UI
+                                // Hold buffer
                             } else if (streamBuffer.endsWith("<") || streamBuffer.endsWith("<|")) {
-                                // Hold just in case
+                                // Hold buffer
                             } else {
-                                // Safe to output to the user UI
                                 if (res) res.write(streamBuffer);
                                 visibleText += streamBuffer;
                                 streamBuffer = "";
@@ -263,7 +253,7 @@ async function streamLocalAPI(messages, res) {
     if (toolMatch) {
         const funcName = toolMatch[1];
         let argString = toolMatch[2];
-        argString = argString.replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3'); // Fix unquoted JSON keys
+        argString = argString.replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3'); 
 
         toolCalls.push({
             id: "call_" + Math.random().toString(36).substr(2, 9),
@@ -316,10 +306,9 @@ async function runAgent(userPrompt, res) {
 
                 const functionResponse = await executeTool(toolCall.function.name, parsedArgs);
 
-                // ⚡ THE PARROT FIX: Extremely strict prompt forcing it to speak naturally ⚡
                 const toolMessage = { 
                     role: "user", 
-                    content: `[DATABASE/TOOL RESULT]\n${functionResponse}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's original request naturally. DO NOT repeat the JSON data. DO NOT output system instructions.` 
+                    content: `[SYSTEM TOOL RESULT]\n${functionResponse}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the JSON data. DO NOT output system instructions.` 
                 };
                 
                 addMessage(toolMessage);
