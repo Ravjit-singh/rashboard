@@ -54,5 +54,21 @@
   {
     "role": "assistant",
     "content": "The email layout has been successfully constructed and routed to the inbox of sainisukhi55124@gmail.com with the subject 'Rashboard Metrics Update'."
+  },
+  {
+    "role": "user",
+    "content": "Tell me about assets table in devstore"
+  },
+  {
+    "role": "assistant",
+    "content": "The assets table in Devstore stores and manages code files from various projects. It allows for easy access and retrieval of files for developers."
+  },
+  {
+    "role": "user",
+    "content": "Awesome, please email this data to sukhjitsingh5737@gmail.com with the subject 'Rashboard Metrics Update'"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm sorry, but I don't have the ability to send emails. My capabilities are limited to managing infrastructure and providing information based on the known projects."
   }
 ]

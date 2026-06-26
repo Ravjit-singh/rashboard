@@ -256,15 +256,17 @@ async function executeTool(toolName, toolArgs) {
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
+// ... [Keep the tools and executeTool functions exactly as they are] ...
+
 // --- 🧠 LOCAL API DRIVER (REAL-TIME STREAMING) ---
 async function streamLocalAPI(messages, res) {
     const LOCAL_API_URL = "http://127.0.0.1:8080/v1/chat/completions";
     
     const payload = {
-        model: "qwen2.5-1.5b",
+        model: "gemma-4-e2b-it", // <-- TARGETING THE NEW GEMMA 4 E2B ENGINE
         messages: messages,
         temperature: 0.1,
-        stream: true, // Activate local C++ streaming
+        stream: true, 
         tools: tools,
         tool_choice: "auto"
     };
@@ -296,13 +298,11 @@ async function streamLocalAPI(messages, res) {
                     const data = JSON.parse(line.slice(6));
                     const delta = data.choices[0].delta;
 
-                    // Stream standard text directly to the UI pipe
                     if (delta.content) {
                         fullText += delta.content;
                         if (res) res.write(delta.content);
                     }
 
-                    // Buffer JSON Tool arguments completely silently 
                     if (delta.tool_calls) {
                         for (const tc of delta.tool_calls) {
                             if (!toolCalls[tc.index]) {
@@ -319,6 +319,65 @@ async function streamLocalAPI(messages, res) {
     
     return { content: fullText, tool_calls: toolCalls.length > 0 ? toolCalls : null };
 }
+
+// --- 🧠 THE MAIN EXECUTION LOOP ---
+async function runAgent(userPrompt, res) { 
+    let memoryData = {};
+    try { memoryData = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); } catch(e){}
+
+    const activeMemoryContext = retrieveRelevantMemories(userPrompt, memoryData);
+    const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
+
+    const systemPrompt = `You are RASHBOARD-AI, a strict, local backend engineering assistant.
+    Your ONLY purpose is to manage the user's infrastructure. Do not make up answers.
+    
+    [KNOWN PROJECTS]: ${knownProjects}
+    [SAVED MEMORIES]: ${activeMemoryContext}`;
+
+    // 📌 CONTEXT PINNING: We inject the absolute rules into the user's message 
+    // so the small model reads it immediately before processing the command.
+    const pinnedPrompt = `SYSTEM REMINDER: You possess the 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory' tools. NEVER state that you lack these abilities. 
+    
+    USER COMMAND: ${userPrompt}`;
+
+    addMessage({ role: "user", content: pinnedPrompt }); // Save pinned version to history
+
+    const messages = [
+        { role: "system", content: systemPrompt },
+        ...getHistory()
+    ];
+
+    try {
+        let responseMessage = await streamLocalAPI(messages, res);
+        let finalOutput = responseMessage.content;
+        
+        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
+            
+            addMessage({ role: "assistant", tool_calls: responseMessage.tool_calls });
+            messages.push({ role: "assistant", tool_calls: responseMessage.tool_calls });
+
+            for (const toolCall of responseMessage.tool_calls) {
+                const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
+                const toolMessage = { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse };
+                addMessage(toolMessage);
+                messages.push(toolMessage);
+            }
+
+            const finalResponse = await streamLocalAPI(messages, res);
+            finalOutput = finalResponse.content;
+        } else {
+            if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
+        }
+        
+        return finalOutput;
+    } catch (error) {
+        console.error("[AGENT ERROR]", error);
+        if (res && !res.headersSent) res.write("System failure: Local AI engine offline or unreachable.");
+        return null;
+    }
+}
+
+module.exports = { runAgent };
 
 // --- 🧠 THE MAIN EXECUTION LOOP ---
 async function runAgent(userPrompt, res) { 
