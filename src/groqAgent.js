@@ -1,11 +1,11 @@
-// src/localAgent.js (Formerly groqAgent.js)
+// src/groqAgent.js
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const nodemailer = require('nodemailer');
 const { getHistory, addMessage } = require('./contextWindow'); 
 
-// 🚨 We are now aiming at your local Termux server! 🚨
+// 🚨 Local Termux Router Target 🚨
 const LOCAL_API_URL = "http://127.0.0.1:8080/v1/chat/completions";
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
 const TEMPLATE_FILE = path.join(__dirname, 'emailTemplate.html');
@@ -125,7 +125,7 @@ const tools = [
 
 // --- ⚙️ TOOL EXECUTION LOGIC ---
 async function executeTool(toolName, toolArgs) {
-    console.log(`[AGENT] Executing tool: ${toolName}`);
+    console.log(`[AGENT] Executing tool verified matching: ${toolName}`);
     
     if (toolName === "saveToMemory") {
         try {
@@ -156,7 +156,6 @@ async function executeTool(toolName, toolArgs) {
                 return JSON.stringify({ error: "Local html blueprint template not discovered in file path storage." });
             }
 
-            // 📂 READ TEMPLATE AND INJECT CONTENT
             let htmlLayout = fs.readFileSync(TEMPLATE_FILE, 'utf8');
             const cleanBodyHtml = toolArgs.body.split('\n').map(p => p.trim() ? `<p>${p.trim()}</p>` : '').join('');
             
@@ -167,7 +166,7 @@ async function executeTool(toolName, toolArgs) {
             const transporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST,
                 port: parseInt(process.env.SMTP_PORT || '587', 10),
-                secure: process.env.SMTP_PORT === '464', 
+                secure: process.env.SMTP_PORT === '465', 
                 auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
             });
 
@@ -175,8 +174,8 @@ async function executeTool(toolName, toolArgs) {
                 from: process.env.SMTP_FROM || process.env.SMTP_USER,
                 to: toolArgs.to,
                 subject: toolArgs.subject,
-                text: toolArgs.body, // Text backup parameter
-                html: htmlLayout // Injected HTML Layout parameters
+                text: toolArgs.body,
+                html: htmlLayout
             });
 
             return JSON.stringify({ success: `Email layout successfully constructed and routed to destination inbox.` });
@@ -256,14 +255,10 @@ async function executeTool(toolName, toolArgs) {
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
-// ... [Keep the tools and executeTool functions exactly as they are] ...
-
-// --- 🧠 LOCAL API DRIVER (REAL-TIME STREAMING) ---
+// --- 🧠 LOCAL API DRIVER (REAL-TIME STREAMING WITH FRAGMENT PATCH) ---
 async function streamLocalAPI(messages, res) {
-    const LOCAL_API_URL = "http://127.0.0.1:8080/v1/chat/completions";
-    
     const payload = {
-        model: "gemma-4-e2b-it", // <-- TARGETING THE NEW GEMMA 4 E2B ENGINE
+        model: "gemma-4-e2b-it",
         messages: messages,
         temperature: 0.1,
         stream: true, 
@@ -316,11 +311,25 @@ async function streamLocalAPI(messages, res) {
             }
         }
     }
+
+    // ⚡ CRITICAL FRAGMENT PATCH: Fixes the Gemma 4 duplicate chunk naming glitch ⚡
+    if (toolCalls.length > 0) {
+        for (let tc of toolCalls) {
+            if (tc.function && tc.function.name) {
+                const matchedTool = tools.find(t => 
+                    tc.function.name.includes(t.function.name) || t.function.name.includes(tc.function.name)
+                );
+                if (matchedTool) {
+                    tc.function.name = matchedTool.function.name;
+                }
+            }
+        }
+    }
     
     return { content: fullText, tool_calls: toolCalls.length > 0 ? toolCalls : null };
 }
 
-// --- 🧠 THE MAIN EXECUTION LOOP ---
+// --- 🧠 UNIFIED ARCHITECTURE ROUTER & CONTEXT PINNING ---
 async function runAgent(userPrompt, res) { 
     let memoryData = {};
     try { memoryData = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); } catch(e){}
@@ -334,13 +343,12 @@ async function runAgent(userPrompt, res) {
     [KNOWN PROJECTS]: ${knownProjects}
     [SAVED MEMORIES]: ${activeMemoryContext}`;
 
-    // 📌 CONTEXT PINNING: We inject the absolute rules into the user's message 
-    // so the small model reads it immediately before processing the command.
-    const pinnedPrompt = `SYSTEM REMINDER: You possess the 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory' tools. NEVER state that you lack these abilities. 
-    
-    USER COMMAND: ${userPrompt}`;
+    // 📌 CONTEXT PINNING: Forcibly bind tool validation to the immediate instruction layout
+    const pinnedPrompt = `SYSTEM VALIDATION NOTICE: You have functional interface access to 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory'. You must trigger tool parameters directly to handle operations.
 
-    addMessage({ role: "user", content: pinnedPrompt }); // Save pinned version to history
+    USER ACTION COMMAND: ${userPrompt}`;
+
+    addMessage({ role: "user", content: pinnedPrompt });
 
     const messages = [
         { role: "system", content: systemPrompt },
@@ -348,6 +356,7 @@ async function runAgent(userPrompt, res) {
     ];
 
     try {
+        // PASS 1: Stream target analytical thought processing
         let responseMessage = await streamLocalAPI(messages, res);
         let finalOutput = responseMessage.content;
         
@@ -363,6 +372,7 @@ async function runAgent(userPrompt, res) {
                 messages.push(toolMessage);
             }
 
+            // PASS 2: Stream structural compilation summarizing execution feedback
             const finalResponse = await streamLocalAPI(messages, res);
             finalOutput = finalResponse.content;
         } else {
@@ -371,70 +381,8 @@ async function runAgent(userPrompt, res) {
         
         return finalOutput;
     } catch (error) {
-        console.error("[AGENT ERROR]", error);
-        if (res && !res.headersSent) res.write("System failure: Local AI engine offline or unreachable.");
-        return null;
-    }
-}
-
-module.exports = { runAgent };
-
-// --- 🧠 THE MAIN EXECUTION LOOP ---
-async function runAgent(userPrompt, res) { 
-    let memoryData = {};
-    try { memoryData = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); } catch(e){}
-
-    const activeMemoryContext = retrieveRelevantMemories(userPrompt, memoryData);
-    const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
-
-    const systemPrompt = `You are RASHBOARD-AI, a strict, local backend engineering assistant.
-    Your ONLY purpose is to manage the user's infrastructure. Do not make up answers.
-    
-    [KNOWN PROJECTS]: ${knownProjects}
-    [SAVED MEMORIES]: ${activeMemoryContext}
-    
-    CRITICAL INSTRUCTIONS:
-    1. If the user asks about databases, YOU MUST USE the 'querySupabaseDatabase' tool.
-    2. If the user says "remember" or "keep in mind", YOU MUST USE the 'saveToMemory' tool.
-    3. If the user asks to send an email, YOU MUST USE the 'sendEmail' tool.
-    4. You are offline and local. Keep answers brief, technical, and directly related to the known projects.`;
-
-    addMessage({ role: "user", content: userPrompt });
-
-    const messages = [
-        { role: "system", content: systemPrompt },
-        ...getHistory()
-    ];
-
-    try {
-        // PASS 1: Stream the thought process
-        let responseMessage = await streamLocalAPI(messages, res);
-        let finalOutput = responseMessage.content;
-        
-        // Did the model want to trigger a background tool?
-        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-            
-            addMessage({ role: "assistant", tool_calls: responseMessage.tool_calls });
-            messages.push({ role: "assistant", tool_calls: responseMessage.tool_calls });
-
-            for (const toolCall of responseMessage.tool_calls) {
-                const functionResponse = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
-                const toolMessage = { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: functionResponse };
-                addMessage(toolMessage);
-                messages.push(toolMessage);
-            }
-
-            // PASS 2: Send tool results back to the stream and update UI
-            const finalResponse = await streamLocalAPI(messages, res);
-            finalOutput = finalResponse.content;
-        } else {
-            if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
-        }
-        
-        return finalOutput;
-    } catch (error) {
-        console.error("[AGENT ERROR]", error);
-        if (res && !res.headersSent) res.write("System failure: Local AI engine offline or unreachable.");
+        console.error("[AGENT SYSTEM EXCEPTION]", error);
+        if (res && !res.headersSent) res.write("System failure: Local AI engine connection dropped during transaction stream.");
         return null;
     }
 }

@@ -1,74 +1,33 @@
 [
   {
     "role": "user",
-    "content": "Tell me number of rows in professionals table service linkup"
+    "content": "Hey tell me about assets in devstore"
   },
   {
     "role": "assistant",
-    "content": "",
+    "content": "Assets in Devstore refer to the assets names stored in the centralized library where Ravjit Singh manages code files for his various projects."
+  },
+  {
+    "role": "user",
+    "content": "List the name of assets from assets table in devstore"
+  },
+  {
+    "role": "assistant",
     "tool_calls": [
       {
+        "id": "mAq7sYAbxmihmKZzwFeRj0bnSqSBkRx5",
         "type": "function",
         "function": {
-          "name": "querySupabaseDatabase",
-          "arguments": "{\"projectName\": \"Service Linkup\", \"tableName\": \"professionals\", \"selectQuery\": \"count\"}"
-        },
-        "id": "EKzTEJkmcI0Cx7LfBjcCRLpqjZuwg09V"
+          "name": "querySupabaseDatabasequerySupabaseDatabase",
+          "arguments": "{\"projectName\":\"Devstore\",\"selectQuery\":\"*\",\"tableName\":\"assets\"}"
+        }
       }
     ]
   },
   {
-    "tool_call_id": "EKzTEJkmcI0Cx7LfBjcCRLpqjZuwg09V",
+    "tool_call_id": "mAq7sYAbxmihmKZzwFeRj0bnSqSBkRx5",
     "role": "tool",
-    "name": "querySupabaseDatabase",
-    "content": "{\"tableName\":\"professionals\",\"totalRowCount\":3}"
-  },
-  {
-    "role": "assistant",
-    "content": "The professionals table in Service Linkup has 3 rows."
-  },
-  {
-    "role": "user",
-    "content": "Awesome, please email this data to sainisukhi55124@gmail.com with the subject 'Rashboard Metrics Update"
-  },
-  {
-    "role": "assistant",
-    "content": "",
-    "tool_calls": [
-      {
-        "type": "function",
-        "function": {
-          "name": "sendEmail",
-          "arguments": "{\"to\": \"sainisukhi55124@gmail.com\", \"subject\": \"Rashboard Metrics Update\", \"body\": \"The professionals table in Service Linkup has 3 rows.\"}"
-        },
-        "id": "xmSs06dQwSDVYh2h6AwLNlO6PIn1njQV"
-      }
-    ]
-  },
-  {
-    "tool_call_id": "xmSs06dQwSDVYh2h6AwLNlO6PIn1njQV",
-    "role": "tool",
-    "name": "sendEmail",
-    "content": "{\"success\":\"Email layout successfully constructed and routed to destination inbox.\"}"
-  },
-  {
-    "role": "assistant",
-    "content": "The email layout has been successfully constructed and routed to the inbox of sainisukhi55124@gmail.com with the subject 'Rashboard Metrics Update'."
-  },
-  {
-    "role": "user",
-    "content": "Tell me about assets table in devstore"
-  },
-  {
-    "role": "assistant",
-    "content": "The assets table in Devstore stores and manages code files from various projects. It allows for easy access and retrieval of files for developers."
-  },
-  {
-    "role": "user",
-    "content": "Awesome, please email this data to sukhjitsingh5737@gmail.com with the subject 'Rashboard Metrics Update'"
-  },
-  {
-    "role": "assistant",
-    "content": "I'm sorry, but I don't have the ability to send emails. My capabilities are limited to managing infrastructure and providing information based on the known projects."
+    "name": "querySupabaseDatabasequerySupabaseDatabase",
+    "content": "{\"error\":\"Unknown tool called.\"}"
   }
 ]
