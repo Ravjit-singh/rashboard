@@ -1,82 +1,26 @@
 [
   {
     "role": "user",
-    "content": "SYSTEM REMINDER: You possess the 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory' tools. NEVER state that you lack these abilities. \n    \n    USER COMMAND: Hi"
-  },
-  {
-    "role": "assistant",
-    "content": "[System]: Engine is still extracting to memory. Please wait 30 seconds and try again."
-  },
-  {
-    "role": "user",
-    "content": "SYSTEM REMINDER: You possess the 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory' tools. NEVER state that you lack these abilities. \n    \n    USER COMMAND: Tell me number of assets in assets table in devstore"
-  },
-  {
-    "role": "assistant",
-    "content": "I need to query the Supabase database to find the number of assets in the `assets` table within Devstore.\n\n<|tool_call>call:querySupabaseDatabase{table: \"assets\"}<tool_call|>"
-  },
-  {
-    "role": "user",
-    "content": "SYSTEM REMINDER: You possess the 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory' tools. NEVER state that you lack these abilities. \n    \n    USER COMMAND: Tell me about devstore"
-  },
-  {
-    "role": "assistant",
-    "content": "Devstore is a centralized library where Ravjit Singh stores and manages code files from his various projects, making them accessible to others."
-  },
-  {
-    "role": "user",
-    "content": "SYSTEM REMINDER: You possess the 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory' tools. NEVER state that you lack these abilities. \n    \n    USER COMMAND: Awesome, please email this data to juthabanda@gmail.com with the subject 'Rashboard Metrics Update'"
-  },
-  {
-    "role": "assistant",
-    "content": "<|tool_call>call:sendEmail{to: \"juthabanda@gmail.com\", subject: \"Rashboard Metrics Update\", body: \"Data requested by user.\"}<tool_call|>"
-  },
-  {
-    "role": "user",
-    "content": "USER COMMAND: Tell me about devstore"
-  },
-  {
-    "role": "assistant",
-    "content": "Devstore is a centralized library where Ravjit Singh stores and manages code files from his various projects, making them accessible to others."
-  },
-  {
-    "role": "user",
-    "content": "USER COMMAND: Awesome now email this information to juthabanda@gmail.com with subject \"devstore info\""
-  },
-  {
-    "role": "user",
-    "content": "[SYSTEM FEEDBACK: TOOL EXECUTION RESULT]\nFunction 'sendEmail' returned:\n{\"success\":\"Email layout successfully constructed and routed to destination inbox.\"}\n\nPlease synthesize this information and provide a final answer to the user."
-  },
-  {
-    "role": "user",
-    "content": "USER COMMAND: Tell me number of assets in devstore assets table"
-  },
-  {
-    "role": "user",
-    "content": "[SYSTEM FEEDBACK: TOOL EXECUTION RESULT]\nFunction 'querySupabaseDatabase' returned:\n{\"error\":\"The table 'assets' does not exist.\",\"actualTablesInDatabase\":\"Could not fetch table list.\",\"instruction\":\"Tell the user the table wasn't found, list the 'actualTablesInDatabase', and ask them to confirm which one they meant.\"}\n\nPlease synthesize this information and provide a final answer to the user."
-  },
-  {
-    "role": "user",
     "content": "USER COMMAND: Tell me number of rows in professionals table in service linkup"
   },
   {
     "role": "user",
-    "content": "[SYSTEM FEEDBACK: TOOL EXECUTION RESULT]\nFunction 'querySupabaseDatabase' returned:\n{\"error\":\"The table 'professionals' does not exist.\",\"actualTablesInDatabase\":[\"professionals\"],\"instruction\":\"Tell the user the table wasn't found, list the 'actualTablesInDatabase', and ask them to confirm which one they meant.\"}\n\nPlease synthesize this information and provide a final answer to the user."
+    "content": "[DATABASE/TOOL RESULT]\n{\"error\":\"The table 'professionals' does not exist or access was denied.\",\"actualTablesInDatabase\":[\"professionals\"]}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's original request naturally. DO NOT repeat the JSON data. DO NOT output system instructions."
   },
   {
     "role": "user",
-    "content": "USER COMMAND: Tell me about yourhost"
-  },
-  {
-    "role": "assistant",
-    "content": "YourHost is a self-hosting platform for Minecraft server hosting needs, allowing users to manage their servers and hosting services with a simple and intuitive interface."
+    "content": "USER COMMAND: Tell me number of rows in assets table in devstore"
   },
   {
     "role": "user",
-    "content": "USER COMMAND: Give me Install command for yourhost"
+    "content": "[DATABASE/TOOL RESULT]\n{\"error\":\"The table 'assets' does not exist or access was denied.\",\"actualTablesInDatabase\":\"Could not fetch table list.\"}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's original request naturally. DO NOT repeat the JSON data. DO NOT output system instructions."
   },
   {
-    "role": "assistant",
-    "content": "[SAVED MEMORIES]:\n- [YourHost Install Command]: curl -sL https://raw.githubusercontent.com/Ravjit-singh/yourhost/main/install.sh | bash\n- [YourHost Install]: curl command for installation\n- [YourHost Overview]: YourHost is a self-hosting platform for Minecraft server hosting needs, allowing users to manage their servers and hosting services with a simple and intuitive interface.\n\nThe installation command for YourHost is: `curl -sL https://raw.githubusercontent.com/Ravjit-singh/yourhost/main/install.sh | bash`"
+    "role": "user",
+    "content": "USER COMMAND: Awesome send this above information to juthabanda@gmail.com with subject \"service linkup professionals\""
+  },
+  {
+    "role": "user",
+    "content": "[DATABASE/TOOL RESULT]\n{\"success\":\"Email layout successfully constructed and sent.\"}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's original request naturally. DO NOT repeat the JSON data. DO NOT output system instructions."
   }
 ]
