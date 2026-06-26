@@ -1,11 +1,10 @@
-// src/groqAgent.js
+// src/localAgent.js (Formerly groqAgent.js)
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const nodemailer = require('nodemailer');
 const { getHistory, addMessage } = require('./contextWindow'); 
 
-// 🚨 Local Termux Router Target 🚨
 const LOCAL_API_URL = "http://127.0.0.1:8080/v1/chat/completions";
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
 const TEMPLATE_FILE = path.join(__dirname, 'emailTemplate.html');
@@ -14,7 +13,6 @@ if (!fs.existsSync(MEMORY_FILE)) {
     fs.writeFileSync(MEMORY_FILE, JSON.stringify({}, null, 2));
 }
 
-// --- 🧠 LIGHTWEIGHT RAG ENGINE (Zero-Dependency) ---
 function retrieveRelevantMemories(prompt, memoryObj) {
     const stopWords = new Set(['the','is','in','at','of','on','and','a','an','to','for','with','it','this','that','tell','me','about','how','many','are','there']);
     const words = prompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
@@ -47,7 +45,6 @@ function retrieveRelevantMemories(prompt, memoryObj) {
     return contextString;
 }
 
-// --- 🛠️ THE AI TOOLBELT ---
 const tools = [
     {
         type: "function",
@@ -123,9 +120,8 @@ const tools = [
     }
 ];
 
-// --- ⚙️ TOOL EXECUTION LOGIC ---
 async function executeTool(toolName, toolArgs) {
-    console.log(`[AGENT] Executing tool verified matching: ${toolName}`);
+    console.log(`[AGENT] Executing tool: ${toolName}`);
     
     if (toolName === "saveToMemory") {
         try {
@@ -166,7 +162,7 @@ async function executeTool(toolName, toolArgs) {
             const transporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST,
                 port: parseInt(process.env.SMTP_PORT || '587', 10),
-                secure: process.env.SMTP_PORT === '465', 
+                secure: process.env.SMTP_PORT === '464', 
                 auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
             });
 
@@ -174,8 +170,8 @@ async function executeTool(toolName, toolArgs) {
                 from: process.env.SMTP_FROM || process.env.SMTP_USER,
                 to: toolArgs.to,
                 subject: toolArgs.subject,
-                text: toolArgs.body,
-                html: htmlLayout
+                text: toolArgs.body, 
+                html: htmlLayout 
             });
 
             return JSON.stringify({ success: `Email layout successfully constructed and routed to destination inbox.` });
@@ -255,7 +251,6 @@ async function executeTool(toolName, toolArgs) {
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
-// --- 🧠 LOCAL API DRIVER (REAL-TIME STREAMING WITH FRAGMENT PATCH) ---
 async function streamLocalAPI(messages, res) {
     const payload = {
         model: "gemma-4-e2b-it",
@@ -311,25 +306,10 @@ async function streamLocalAPI(messages, res) {
             }
         }
     }
-
-    // ⚡ CRITICAL FRAGMENT PATCH: Fixes the Gemma 4 duplicate chunk naming glitch ⚡
-    if (toolCalls.length > 0) {
-        for (let tc of toolCalls) {
-            if (tc.function && tc.function.name) {
-                const matchedTool = tools.find(t => 
-                    tc.function.name.includes(t.function.name) || t.function.name.includes(tc.function.name)
-                );
-                if (matchedTool) {
-                    tc.function.name = matchedTool.function.name;
-                }
-            }
-        }
-    }
     
     return { content: fullText, tool_calls: toolCalls.length > 0 ? toolCalls : null };
 }
 
-// --- 🧠 UNIFIED ARCHITECTURE ROUTER & CONTEXT PINNING ---
 async function runAgent(userPrompt, res) { 
     let memoryData = {};
     try { memoryData = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); } catch(e){}
@@ -343,12 +323,11 @@ async function runAgent(userPrompt, res) {
     [KNOWN PROJECTS]: ${knownProjects}
     [SAVED MEMORIES]: ${activeMemoryContext}`;
 
-    // 📌 CONTEXT PINNING: Forcibly bind tool validation to the immediate instruction layout
-    const pinnedPrompt = `SYSTEM VALIDATION NOTICE: You have functional interface access to 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory'. You must trigger tool parameters directly to handle operations.
+    const pinnedPrompt = `SYSTEM REMINDER: You possess the 'sendEmail', 'querySupabaseDatabase', 'saveToMemory', and 'removeFromMemory' tools. NEVER state that you lack these abilities. 
+    
+    USER COMMAND: ${userPrompt}`;
 
-    USER ACTION COMMAND: ${userPrompt}`;
-
-    addMessage({ role: "user", content: pinnedPrompt });
+    addMessage({ role: "user", content: pinnedPrompt }); 
 
     const messages = [
         { role: "system", content: systemPrompt },
@@ -356,7 +335,6 @@ async function runAgent(userPrompt, res) {
     ];
 
     try {
-        // PASS 1: Stream target analytical thought processing
         let responseMessage = await streamLocalAPI(messages, res);
         let finalOutput = responseMessage.content;
         
@@ -372,7 +350,6 @@ async function runAgent(userPrompt, res) {
                 messages.push(toolMessage);
             }
 
-            // PASS 2: Stream structural compilation summarizing execution feedback
             const finalResponse = await streamLocalAPI(messages, res);
             finalOutput = finalResponse.content;
         } else {
@@ -381,8 +358,8 @@ async function runAgent(userPrompt, res) {
         
         return finalOutput;
     } catch (error) {
-        console.error("[AGENT SYSTEM EXCEPTION]", error);
-        if (res && !res.headersSent) res.write("System failure: Local AI engine connection dropped during transaction stream.");
+        console.error("[AGENT ERROR]", error);
+        if (res && !res.headersSent) res.write("System failure: Local AI engine offline or unreachable.");
         return null;
     }
 }
