@@ -1,38 +1,152 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{SUBJECT}}</title>
     <style>
-        body { margin: 0; padding: 0; background-color: #09090b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; color: #fafafa; }
-        .wrapper { box-sizing: border-box; width: 100%; max-width: 600px; margin: 0 auto; padding: 40px 20px; }
-        .card { background-color: #18181b; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .header { display: flex; align-items: center; margin-bottom: 24px; border-b: 1px solid rgba(255,255,255,0.05); padding-bottom: 16px; }
-        .title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #3b82f6; margin: 0; }
-        .subject { font-size: 20px; font-weight: 700; tracking: -0.02em; color: #fafafa; margin: 8px 0 0 0; }
-        .content { font-size: 14px; line-height: 1.6; color: #a1a1aa; margin-top: 24px; }
-        .content p { margin: 0 0 16px 0; }
-        .content p:last-child { margin-bottom: 0; }
-        .footer { margin-top: 32px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px; text-align: center; }
-        .footer-text { font-size: 11px; font-weight: 500; color: #71717a; margin: 0; }
+        /* Modern System Fonts */
+        body, table, td, div, p, a, h1, h2 { 
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+        }
+        
+        /* Base Reset */
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background-color: #000000; 
+            color: #ffffff; 
+            -webkit-font-smoothing: antialiased; 
+        }
+        
+        /* Wrapper & Layout */
+        .wrapper { 
+            width: 100%; 
+            background-color: #000000; 
+            padding: 50px 20px; 
+            box-sizing: border-box; 
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background-color: #09090b; 
+            border: 1px solid #27272a; 
+            border-radius: 20px; 
+            overflow: hidden; 
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6); 
+        }
+        
+        /* Header Section */
+        .header { 
+            padding: 40px 36px 28px 36px; 
+            background-color: #09090b;
+            border-bottom: 1px solid #18181b; 
+        }
+        .badge { 
+            display: inline-block; 
+            background-color: #18181b; 
+            border: 1px solid #27272a; 
+            color: #a1a1aa; 
+            font-size: 10px; 
+            font-weight: 700; 
+            letter-spacing: 0.1em; 
+            text-transform: uppercase; 
+            padding: 6px 14px; 
+            border-radius: 9999px; 
+            margin-bottom: 20px;
+        }
+        .badge-dot { 
+            display: inline-block; 
+            width: 6px; 
+            height: 6px; 
+            background-color: #3b82f6; 
+            border-radius: 50%; 
+            margin-right: 8px; 
+            vertical-align: middle; 
+            margin-top: -2px; 
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+        }
+        .subject { 
+            font-size: 26px; 
+            font-weight: 700; 
+            color: #ffffff; 
+            margin: 0; 
+            letter-spacing: -0.02em; 
+            line-height: 1.3; 
+        }
+        
+        /* Main Content Section */
+        .body-content { 
+            padding: 36px; 
+            color: #d4d4d8; 
+            font-size: 16px; 
+            line-height: 1.7; 
+        }
+        .body-content p { 
+            margin: 0 0 20px 0; 
+        }
+        .body-content p:last-child { 
+            margin-bottom: 0; 
+        }
+        .body-content strong { 
+            color: #ffffff; 
+            font-weight: 600; 
+        }
+        
+        /* Monospace Data Formatting */
+        .body-content code {
+            font-family: 'Geist Mono', ui-monospace, monospace;
+            font-size: 14px;
+            background-color: #18181b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #60a5fa;
+        }
+        
+        /* Footer Section */
+        .footer { 
+            background-color: #000000; 
+            border-top: 1px solid #18181b; 
+            padding: 28px 36px; 
+            text-align: center; 
+        }
+        .footer-text { 
+            font-family: 'Geist Mono', ui-monospace, Menlo, Monaco, Consolas, monospace; 
+            font-size: 11px; 
+            color: #52525b; 
+            margin: 0; 
+            line-height: 1.6; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+        }
+        .brand-highlight {
+            color: #71717a;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
     <div class="wrapper">
-        <div class="card">
+        <div class="container">
+            
             <div class="header">
                 <div>
-                    <h2 class="title">Rashboard Core System Dispatch</h2>
-                    <h1 class="subject">{{SUBJECT}}</h1>
+                    <span class="badge"><span class="badge-dot"></span>System Dispatch</span>
                 </div>
+                <h1 class="subject">{{SUBJECT}}</h1>
             </div>
-            <div class="content">
+            
+            <div class="body-content">
                 {{BODY}}
             </div>
+            
             <div class="footer">
-                <p class="footer-text">Automated operational notification sent via local node server runtime.</p>
+                <p class="footer-text">
+                    <span class="brand-highlight">Rashboard Core Architecture</span><br>
+                    Automated report generated natively by local Edge GPU.
+                </p>
             </div>
+            
         </div>
     </div>
 </body>
