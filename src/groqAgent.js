@@ -111,10 +111,7 @@ async function executeTool(toolName, toolArgs) {
     const targetName = (toolArgs.projectName || '').toLowerCase().replace(/\s+/g, '');
     const project = global.systemCache.projects.find(p => (p.name || p.id).toLowerCase().replace(/\s+/g, '') === targetName);
     
-    if (!project && toolName === "querySupabaseDatabase") {
-        return JSON.stringify({ error: "Please specify the exact 'projectName' alongside the 'tableName' so I know which database to connect to." });
-    }
-    
+    if (!project && toolName === "querySupabaseDatabase") return JSON.stringify({ error: "Specify the exact 'projectName'." });
     if (!project) return JSON.stringify({ error: `Project not found in the synced UI vault.` });
 
     if (toolName === "getProjectStatus") {
@@ -156,33 +153,28 @@ async function executeTool(toolName, toolArgs) {
             if (!dbRes.ok) {
                 let diagnosticReason = "Unknown network error.";
                 if (dbRes.status === 404) diagnosticReason = `The table '${cleanTableName}' does not exist in this database.`;
-                if (dbRes.status === 401 || dbRes.status === 403) diagnosticReason = `Access Denied. Row Level Security (RLS) is active and blocking read access.`;
-                if (dbRes.status === 400) diagnosticReason = `Bad request syntax.`;
-
+                if (dbRes.status === 401 || dbRes.status === 403) diagnosticReason = `Access Denied. Row Level Security (RLS) is active.`;
                 return JSON.stringify({ error: "Database query failed.", httpStatusCode: dbRes.status, diagnosticReason: diagnosticReason });
             }
 
             if (isCount) {
                 const range = dbRes.headers.get('content-range') || '0-0/0';
-                const totalCount = parseInt(range.split('/')[1] || 0, 10);
-                return JSON.stringify({ tableName: cleanTableName, queryType: "count", totalRowsInDatabase: totalCount });
+                return JSON.stringify({ tableName: cleanTableName, queryType: "count", totalRowsInDatabase: parseInt(range.split('/')[1] || 0, 10) });
             } else {
                 const data = await dbRes.json();
                 return JSON.stringify({ tableName: cleanTableName, rowsReturned: data.length, data: data });
             }
-        } catch (err) { 
-            return JSON.stringify({ error: "Failed to establish network connection to the Database." }); 
-        }
+        } catch (err) { return JSON.stringify({ error: "Failed to establish network connection." }); }
     }
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
-// ⚡ THE FORGIVING STREAM INTERCEPTOR ⚡
+// ⚡ MAJOR BUG FIX: Precision Stream Interceptor
 async function streamLocalAPI(messages, res) {
     const payload = {
         model: "gemma-4-e2b-it",
         messages: messages,
-        temperature: 0.15 // Slightly elevated to increase conversational fluidity
+        temperature: 0.15 
     };
 
     const fetchRes = await fetch(LOCAL_API_URL, {
@@ -198,9 +190,10 @@ async function streamLocalAPI(messages, res) {
     
     let fullText = "";
     let visibleText = "";
-    let isToolCall = false;
-    let streamBuffer = "";
     let toolCalls = [];
+
+    // This strict regex prevents false mutes on normal words like "call"
+    const toolRegex = /<[|/]?tool_call>|call:(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -213,27 +206,29 @@ async function streamLocalAPI(messages, res) {
             if (line.startsWith('data: ') && line !== 'data: [DONE]') {
                 try {
                     const data = JSON.parse(line.slice(6));
-                    const delta = data.choices[0].delta;
+                    if (data.choices[0].delta.content) {
+                        fullText += data.choices[0].delta.content;
 
-                    if (delta.content) {
-                        fullText += delta.content;
-
-                        // More forgiving detection: catches '<tool', '<|tool', or just 'call:'
-                        if (fullText.includes("<|tool") || fullText.includes("<tool") || fullText.includes("call:")) {
-                            isToolCall = true;
-                        }
-
-                        if (!isToolCall) {
-                            streamBuffer += delta.content;
-                            // Check if stream is currently printing a partial bracket
-                            if (streamBuffer.includes("<|") || streamBuffer.includes("<t")) {
-                                // Hold the buffer
-                            } else if (streamBuffer.endsWith("<")) {
-                                // Hold the buffer
-                            } else {
-                                if (res) res.write(streamBuffer);
-                                visibleText += streamBuffer;
-                                streamBuffer = "";
+                        const toolStartIndex = fullText.search(toolRegex);
+                        
+                        if (toolStartIndex === -1) {
+                            // No tool detected. Check if a tag might be forming
+                            if (!fullText.endsWith("<") && !fullText.endsWith("<|") && !fullText.endsWith("call:")) {
+                                const newText = fullText.substring(visibleText.length);
+                                let cleanText = newText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
+                                if (cleanText.length > 0 && res) {
+                                    res.write(cleanText);
+                                    visibleText += cleanText; // Track exactly what the UI saw
+                                }
+                            }
+                        } else {
+                            // Tool detected! Only stream text that appeared BEFORE the tool tag
+                            const safeText = fullText.substring(0, toolStartIndex);
+                            const newText = safeText.substring(visibleText.length);
+                            let cleanText = newText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
+                            if (cleanText.length > 0 && res) {
+                                res.write(cleanText);
+                                visibleText += cleanText;
                             }
                         }
                     }
@@ -241,20 +236,12 @@ async function streamLocalAPI(messages, res) {
             }
         }
     }
-
-    // ⚡ BUG FIX 1: Flush any innocent text trapped in the buffer at the end of the stream
-    if (!isToolCall && streamBuffer.trim().length > 0) {
-        let finalClean = streamBuffer.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
-        if (finalClean && res) res.write(finalClean);
-        visibleText += finalClean;
-    }
     
-    // ⚡ BUG FIX 2: Highly forgiving regex that handles spacing typos and missing brackets
-    const toolMatch = fullText.match(/<[|/]?tool_call>\s*call:\s*([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i);
+    // Parse the actual JSON tool payload silently
+    const toolMatch = fullText.match(/(?:<[|/]?tool_call>\s*)?call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i);
     if (toolMatch) {
         const funcName = toolMatch[1];
-        let argString = toolMatch[2];
-        argString = argString.replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3'); 
+        let argString = toolMatch[2].replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3'); 
 
         toolCalls.push({
             id: "call_" + Math.random().toString(36).substr(2, 9),
@@ -264,17 +251,7 @@ async function streamLocalAPI(messages, res) {
         return { content: visibleText, tool_calls: toolCalls };
     }
 
-    // ⚡ BUG FIX 3: If it tried to call a tool but completely failed, push the hidden text to the UI so it doesn't hang blank
-    if (isToolCall && !toolMatch && res) {
-        let cleanFull = fullText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
-        let missingText = cleanFull.replace(visibleText, '');
-        if (missingText.trim().length > 0) {
-            res.write(missingText);
-            visibleText = cleanFull;
-        }
-    }
-
-    return { content: fullText, tool_calls: null };
+    return { content: visibleText, tool_calls: null };
 }
 
 async function runAgent(userPrompt, res) { 
@@ -284,23 +261,16 @@ async function runAgent(userPrompt, res) {
     const activeMemoryContext = retrieveRelevantMemories(userPrompt, memoryData);
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
 
-    // ⚡ IMMERSION UPGRADE: A highly aware, specialized system persona
-    const systemPrompt = `You are Rashboard, an advanced, highly capable AI engineering assistant running natively on Ravjit's OnePlus GPU.
-    Your primary directive is to manage his backend infrastructure, orchestrate microservices, and retrieve real-time data seamlessly.
-    
-    Personality Profile:
-    - Crisp, highly intelligent, and direct.
-    - Conversational, but avoid repetitive robotic cliches (e.g., never say "As an AI...").
-    - If a database query fails, diagnose the problem confidently based on the HTTP status code provided.
+    const systemPrompt = `You are Rashboard, an advanced AI engineering assistant running natively on Ravjit's OnePlus GPU.
+    Your primary directive is to manage his backend infrastructure and retrieve data seamlessly.
     
     ${toolsInstructions}
     
     [KNOWN PROJECTS]: ${knownProjects}
     [SAVED MEMORIES]: ${activeMemoryContext}`;
 
-    const pinnedPrompt = `USER COMMAND: ${userPrompt}`;
-
-    addMessage({ role: "user", content: pinnedPrompt }); 
+    // ⚡ MINOR BUG FIX: Only save the clean, pure user prompt to the persistent UI history
+    addMessage({ role: "user", content: userPrompt }); 
 
     const messages = [
         { role: "system", content: systemPrompt },
@@ -309,48 +279,46 @@ async function runAgent(userPrompt, res) {
 
     try {
         let responseMessage = await streamLocalAPI(messages, res);
-        let finalOutput = responseMessage.content;
         
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
             
-            if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
+            // Keep the AI's internal thought process strictly in the TEMPORARY messages array
+            messages.push({ role: "assistant", content: responseMessage.content });
 
             for (const toolCall of responseMessage.tool_calls) {
                 let parsedArgs = {};
-                try { 
-                    parsedArgs = JSON.parse(toolCall.function.arguments); 
-                } catch (e) {
-                    console.error("[AGENT] JSON Parse Error on args:", toolCall.function.arguments);
-                }
+                try { parsedArgs = JSON.parse(toolCall.function.arguments); } catch (e) {}
 
                 const functionResponse = await executeTool(toolCall.function.name, parsedArgs);
 
-                const toolMessage = { 
+                // Send the internal JSON result back to the AI temporarily
+                messages.push({ 
                     role: "user", 
-                    content: `[SYSTEM TOOL RESULT]\n${functionResponse}\n\nCRITICAL INSTRUCTION: Read the data above and answer the user's request naturally in 1-2 sentences. DO NOT repeat the raw JSON data. Synthesize it conversationally.` 
-                };
-                
-                addMessage(toolMessage);
-                messages.push(toolMessage);
+                    content: `[SYSTEM TOOL RESULT]\n${functionResponse}\n\nCRITICAL INSTRUCTION: Analyze the data above and answer my request naturally in 1-2 sentences. DO NOT output JSON.` 
+                });
             }
 
+            // Let the AI stream the final natural answer back to the user
             const finalResponse = await streamLocalAPI(messages, res);
-            finalOutput = finalResponse.content;
-        } else {
-            if (finalOutput) addMessage({ role: "assistant", content: finalOutput });
-        }
-        
-        // ⚡ BUG FIX 4: Safety net to prevent the UI from locking up if the LLM returns absolutely nothing
-        if (!finalOutput || finalOutput.trim() === "") {
-            finalOutput = "Task executed successfully.";
-            if (res) res.write(finalOutput);
-            addMessage({ role: "assistant", content: finalOutput });
-        }
+            
+            // ⚡ MINOR BUG FIX: Combine the texts and save it as ONE clean assistant message
+            const totalCleanResponse = (responseMessage.content + " " + finalResponse.content).trim();
+            if (totalCleanResponse) {
+                addMessage({ role: "assistant", content: totalCleanResponse });
+            }
+            
+            return totalCleanResponse;
 
-        return finalOutput;
+        } else {
+            // If no tools were used, just save the normal answer
+            if (responseMessage.content) {
+                addMessage({ role: "assistant", content: responseMessage.content });
+            }
+            return responseMessage.content;
+        }
     } catch (error) {
         console.error("[AGENT ERROR]", error);
-        if (res && !res.headersSent) res.write("System failure: Local AI engine offline or unreachable.");
+        if (res && !res.headersSent) res.write("System failure: Local AI engine offline.");
         return null;
     }
 }
