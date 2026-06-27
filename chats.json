@@ -1,38 +1,6 @@
 [
   {
     "role": "user",
-    "content": "Great now email this information to sukhjitsingh5737@gmail.com with subject \"rashboard info\""
-  },
-  {
-    "role": "assistant",
-    "content": "The email containing the information about Rashboard was successfully sent to sukhjitsingh5737@gmail.com with the subject \"rashboard info\"."
-  },
-  {
-    "role": "user",
-    "content": "Now tell me about assets in devstore"
-  },
-  {
-    "role": "assistant",
-    "content": "[Files from Devstore]: When user says 'files from Devstore', it means 'assets name from Devstore'\n[Devstore Files Definition]: The user wants the AI to remember that 'files from Devstore' refers to 'assets name from Devstore'.\n[Devstore Description]: Devstore is a centralized library where Ravjit Singh stores and manages code files from his various projects, making them accessible to others.\n\nTo tell you about the assets in Devstore, I need a specific project or context. Could you please tell me which project you are interested in, or if you are asking for a general overview of what Devstore contains?\n\nIf you are asking for a list of assets from a specific project, please specify the project name.\n\n The information regarding assets in Devstore has been successfully memorized under the topic \"Devstore Assets.\""
-  },
-  {
-    "role": "user",
-    "content": "Now tell me name of files in assets table in devstore"
-  },
-  {
-    "role": "assistant",
-    "content": "The assets table in Devstore contains 7 files, including `devstore.html`, `rmusic.html`, `skillmax_mk2.html`, `rassistantui.html`, `DevStore Feature Roadmap.docx`, `termux.apk`, and `rchat.html`."
-  },
-  {
-    "role": "user",
-    "content": "Great now email this information to devstoreteamofficial@gmail.com with subject \"assets query\""
-  },
-  {
-    "role": "assistant",
-    "content": "The email containing the information about the assets in Devstore was successfully sent to devstoreteamofficial@gmail.com with the subject \"assets query\".\n The email containing the information about the assets in Devstore was successfully sent to devstoreteamofficial@gmail.com with the subject \"assets query\"."
-  },
-  {
-    "role": "user",
     "content": "Tell me about Ravjit Singh from service linkup"
   },
   {
@@ -78,5 +46,37 @@
   {
     "role": "assistant",
     "content": "The information regarding Ravjit Singh from Service Linkup has been successfully sent to juthabanda@gmail.com with the subject \"Ravjit Singh\"."
+  },
+  {
+    "role": "user",
+    "content": "Tell me everything about yourhost along with its Install command"
+  },
+  {
+    "role": "assistant",
+    "content": "YourHost is a self-hosting platform for Minecraft server hosting needs, allowing users to manage their servers and hosting services with a simple and intuitive interface.\n\nThe installation command for YourHost is: `curl -sL https://raw.githubusercontent.com/Ravjit-singh/yourhost/main/install.sh | bash`"
+  },
+  {
+    "role": "user",
+    "content": "Great now mail this information to juthabanda@gmail.com with subject \"YourHost\""
+  },
+  {
+    "role": "assistant",
+    "content": "I have successfully sent the information about YourHost to juthabanda@gmail.com with the subject \"YourHost\"."
+  },
+  {
+    "role": "user",
+    "content": "What are the urls for Yourhost like where is it deployed etc and all I want full details"
+  },
+  {
+    "role": "assistant",
+    "content": "YourHost is a self-hosting platform designed for Minecraft server hosting. You can manage your servers and hosting services through a simple and intuitive interface.\n\nThe main URL for YourHost is `https://ravjit-singh.github.io/yourhost`.\n\nThe installation command to set up YourHost is: `curl -sL https://raw.githubusercontent.com/Ravjit-singh/yourhost/main/install.sh | bash`."
+  },
+  {
+    "role": "user",
+    "content": "Mail these details to sukhjitsingh5737@gmail.com with subject \"Yourhost use krke dekh mera\""
+  },
+  {
+    "role": "assistant",
+    "content": "I have sent the details about YourHost to sukhjitsingh5737@gmail.com with the subject \"Yourhost use krke dekh mera\"."
   }
 ]
