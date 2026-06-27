@@ -17,7 +17,7 @@ function retrieveRelevantMemories(prompt, memoryObj) {
     const words = prompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
     const keywords = words.filter(w => w.length > 2 && !stopWords.has(w));
 
-    if (keywords.length === 0) return "Memory banks ready.";
+    if (keywords.length === 0) return "No active memories triggered.";
     let scoredMemories = [];
 
     for (const [topic, info] of Object.entries(memoryObj)) {
@@ -35,11 +35,11 @@ function retrieveRelevantMemories(prompt, memoryObj) {
         if (score > 0) scoredMemories.push({ topic, info, score });
     }
 
-    if (scoredMemories.length === 0) return "No highly relevant memories found for this specific query.";
+    if (scoredMemories.length === 0) return "No active memories triggered.";
     scoredMemories.sort((a, b) => b.score - a.score);
     const topMemories = scoredMemories.slice(0, 3);
 
-    let contextString = "RELEVANT MEMORIES RETAINED FOR THIS TASK:\n";
+    let contextString = "";
     topMemories.forEach(m => { contextString += `- [${m.topic}]: ${m.info}\n`; });
     return contextString;
 }
@@ -52,7 +52,8 @@ const toolsInstructions = `
 - sendEmail { "to": "string", "subject": "string", "body": "string" }
 - querySupabaseDatabase { "projectName": "string", "tableName": "string", "queryType": "count_only" or "fetch_data" }
 
-CRITICAL RULE: To use a tool, you MUST output this exact syntax at the very end of your response:
+TOOL USAGE STRICT RULE:
+If you need to invoke a tool, your ENTIRE response must consist ONLY of the tool call syntax. Do not say "I will check" or "Sending email...". Just output the exact tag:
 <|tool_call>call:FunctionName{"key": "value"}
 `;
 
@@ -169,12 +170,11 @@ async function executeTool(toolName, toolArgs) {
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
-// ⚡ MAJOR BUG FIX: Precision Stream Interceptor
 async function streamLocalAPI(messages, res) {
     const payload = {
         model: "gemma-4-e2b-it",
         messages: messages,
-        temperature: 0.15 
+        temperature: 0.2 // Slightly elevated to prevent generic repetitive phrasing
     };
 
     const fetchRes = await fetch(LOCAL_API_URL, {
@@ -191,8 +191,6 @@ async function streamLocalAPI(messages, res) {
     let fullText = "";
     let visibleText = "";
     let toolCalls = [];
-
-    // This strict regex prevents false mutes on normal words like "call"
     const toolRegex = /<[|/]?tool_call>|call:(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
 
     while (true) {
@@ -208,21 +206,18 @@ async function streamLocalAPI(messages, res) {
                     const data = JSON.parse(line.slice(6));
                     if (data.choices[0].delta.content) {
                         fullText += data.choices[0].delta.content;
-
                         const toolStartIndex = fullText.search(toolRegex);
                         
                         if (toolStartIndex === -1) {
-                            // No tool detected. Check if a tag might be forming
                             if (!fullText.endsWith("<") && !fullText.endsWith("<|") && !fullText.endsWith("call:")) {
                                 const newText = fullText.substring(visibleText.length);
                                 let cleanText = newText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
                                 if (cleanText.length > 0 && res) {
                                     res.write(cleanText);
-                                    visibleText += cleanText; // Track exactly what the UI saw
+                                    visibleText += cleanText; 
                                 }
                             }
                         } else {
-                            // Tool detected! Only stream text that appeared BEFORE the tool tag
                             const safeText = fullText.substring(0, toolStartIndex);
                             const newText = safeText.substring(visibleText.length);
                             let cleanText = newText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
@@ -237,7 +232,6 @@ async function streamLocalAPI(messages, res) {
         }
     }
     
-    // Parse the actual JSON tool payload silently
     const toolMatch = fullText.match(/(?:<[|/]?tool_call>\s*)?call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i);
     if (toolMatch) {
         const funcName = toolMatch[1];
@@ -261,15 +255,22 @@ async function runAgent(userPrompt, res) {
     const activeMemoryContext = retrieveRelevantMemories(userPrompt, memoryData);
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
 
-    const systemPrompt = `You are Rashboard, an advanced AI engineering assistant running natively on Ravjit's OnePlus GPU.
-    Your primary directive is to manage his backend infrastructure and retrieve data seamlessly.
-    
-    ${toolsInstructions}
-    
-    [KNOWN PROJECTS]: ${knownProjects}
-    [SAVED MEMORIES]: ${activeMemoryContext}`;
+    // ⚡ IMMERSION FIX: The psychological boundaries
+    const systemPrompt = `You are Rashboard, an elite AI engineering assistant running natively on Ravjit's OnePlus GPU.
+    Your directive is to seamlessly manage his backend infrastructure, deployments, and data.
 
-    // ⚡ MINOR BUG FIX: Only save the clean, pure user prompt to the persistent UI history
+    CRITICAL RULES OF ENGAGEMENT:
+    1. NEVER narrate your internal processes. 
+    2. NEVER read your internal context, known projects, or saved memories out loud. Use that data silently to inform your answers.
+    3. Speak concisely, confidently, and naturally. Do not act like a generic robot.
+
+    ${toolsInstructions}
+
+    [CLASSIFIED INTERNAL CONTEXT - DO NOT READ OUT LOUD]
+    Projects Available: ${knownProjects}
+    Memory Bank Intel:
+    ${activeMemoryContext}`;
+
     addMessage({ role: "user", content: userPrompt }); 
 
     const messages = [
@@ -282,7 +283,6 @@ async function runAgent(userPrompt, res) {
         
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
             
-            // Keep the AI's internal thought process strictly in the TEMPORARY messages array
             messages.push({ role: "assistant", content: responseMessage.content });
 
             for (const toolCall of responseMessage.tool_calls) {
@@ -291,26 +291,28 @@ async function runAgent(userPrompt, res) {
 
                 const functionResponse = await executeTool(toolCall.function.name, parsedArgs);
 
-                // Send the internal JSON result back to the AI temporarily
+                // ⚡ ANTI-ECHO FIX: Force the AI to synthesize the data instead of blindly repeating it
                 messages.push({ 
                     role: "user", 
-                    content: `[SYSTEM TOOL RESULT]\n${functionResponse}\n\nCRITICAL INSTRUCTION: Analyze the data above and answer my request naturally in 1-2 sentences. DO NOT output JSON.` 
+                    content: `[SYSTEM COMMAND: TOOL EXECUTION COMPLETE]\nResult Data: ${functionResponse}\n\nTask: Deliver this final information to the user in a smooth, conversational manner. Do not repeat the raw data, and do not mention that you used a tool.` 
                 });
             }
 
-            // Let the AI stream the final natural answer back to the user
             const finalResponse = await streamLocalAPI(messages, res);
-            
-            // ⚡ MINOR BUG FIX: Combine the texts and save it as ONE clean assistant message
             const totalCleanResponse = (responseMessage.content + " " + finalResponse.content).trim();
+            
             if (totalCleanResponse) {
                 addMessage({ role: "assistant", content: totalCleanResponse });
+            } else {
+                // Failsafe string that won't echo
+                const fallback = "Process finished successfully.";
+                if (res) res.write(fallback);
+                addMessage({ role: "assistant", content: fallback });
             }
             
             return totalCleanResponse;
 
         } else {
-            // If no tools were used, just save the normal answer
             if (responseMessage.content) {
                 addMessage({ role: "assistant", content: responseMessage.content });
             }

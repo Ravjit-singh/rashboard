@@ -14,5 +14,6 @@
   "Rashboard AI Name": "The name of the Rashboard AI is Rashboard AI",
   "Files from Devstore": "When user says 'files from Devstore', it means 'assets name from Devstore'",
   "Devstore Files Definition": "The user wants the AI to remember that 'files from Devstore' refers to 'assets name from Devstore'.",
-  "Rashboard AI": "Rashboard is a local dashboard application designed to keep records of a project's API, password, and other sensitive information in one place. It aims to provide a centralized platform for managing and accessing project details. Ravjit Singh is the creator."
+  "Rashboard AI": "Rashboard is a local dashboard application designed to keep records of a project's API, password, and other sensitive information in one place. It aims to provide a centralized platform for managing and accessing project details. Ravjit Singh is the creator.",
+  "Devstore Assets": "Devstore is a centralized library where Ravjit Singh stores and manages code files from his various projects, making them accessible to others. 'files from Devstore' refers to 'assets name from Devstore'."
 }
