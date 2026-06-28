@@ -509,42 +509,88 @@ async function autoPingMainUrl(p) {
     }
 }
 
-// --- 🎙️ VOICE ENGINE & AI CHAT ---
+// --- 🎙️ BROWSER-NATIVE NEURAL TTS (WebAssembly) ---
+let ttsPipeline = null;
+let isModelLoading = false;
+
+// 1. Pre-load the tiny model into the phone's RAM
+async function initTTSModel() {
+    if (ttsPipeline || isModelLoading) return;
+    isModelLoading = true;
+    try {
+        // Dynamically import the Hugging Face WASM engine
+        const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers');
+        
+        // Optimize for mobile browser hardware
+        env.allowLocalModels = false;
+        env.useBrowserCache = true; 
+        
+        console.log("[SYSTEM] Downloading & caching Neural Voice...");
+        
+        // Load the TTS model directly into the browser
+        ttsPipeline = await pipeline('text-to-speech', 'Xenova/vits-ljs'); 
+        
+        console.log("[SYSTEM] Neural Voice Ready.");
+    } catch (err) {
+        console.error("Failed to load WASM model:", err);
+    }
+    isModelLoading = false;
+}
+
+// 2. The Fileless Playback Function
 async function speakAgentText(text) { 
     if (!voiceResponseEnabled) return; 
-    
-    // Clean up markdown artifacts before sending to the TTS engine
     const cleanText = text.replace(/[*#]/g, '').replace(/_/g, ' ');
 
     try {
-        // Hit our local Termux Tiny TTS endpoint
-        const response = await fetch('http://127.0.0.1:5000/speak', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: cleanText })
-        });
+        if (!ttsPipeline) {
+            console.log("Model not ready, initializing now...");
+            await initTTSModel();
+        }
 
-        if (!response.ok) throw new Error("Local TTS server offline");
-
-        // Convert the raw memory bytes into a playable browser blob
-        const audioBlob = await response.blob();
+        // Run the neural network natively on hardware via JS
+        const result = await ttsPipeline(cleanText);
+        
+        // The engine outputs raw Float32 audio data. Convert it to a standard browser Audio blob.
+        const wavBuffer = encodeWAV(result.audio, result.sampling_rate);
+        const audioBlob = new Blob([wavBuffer], { type: 'audio/wav' });
         const audioUrl = URL.createObjectURL(audioBlob);
         
-        // 🚀 The Fileless Instant Playback
+        // 🚀 Instant playback at 1.2x speed
         const audio = new Audio(audioUrl);
-        audio.playbackRate = 1.2; // ⚡ THE MAGIC 1.2x SPEED BOOST
+        audio.playbackRate = 1.2; 
         audio.play();
 
     } catch (error) {
-        console.error("Voice Engine Error:", error);
-        
-        // Failsafe: Fallback to the default Android voice if your Termux server is off
+        console.error("WASM Voice Engine Error:", error);
+        // Instant failsafe
         if (window.speechSynthesis) {
             const fallback = new SpeechSynthesisUtterance(cleanText);
             fallback.rate = 1.2;
             window.speechSynthesis.speak(fallback);
         }
     }
+}
+
+// 3. Helper to wrap raw Float32 neural audio into a playable WAV file
+function encodeWAV(samples, sampleRate) {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+    const writeString = (view, offset, string) => { for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i)); };
+    
+    writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(view, 8, 'WAVE'); writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true); view.setUint16(34, 16, true); writeString(view, 36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+    
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+        let s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return buffer;
 }
 
 
