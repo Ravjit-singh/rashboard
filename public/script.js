@@ -510,13 +510,43 @@ async function autoPingMainUrl(p) {
 }
 
 // --- 🎙️ VOICE ENGINE & AI CHAT ---
-function speakAgentText(text) { 
-    if (!voiceResponseEnabled || !window.speechSynthesis) return; 
-    window.speechSynthesis.cancel(); 
-    const utterance = new SpeechSynthesisUtterance(text.replace(/[*#]/g, '').replace(/_/g, ' ')); 
-    utterance.rate = 1.05; utterance.pitch = 1.0; 
-    window.speechSynthesis.speak(utterance); 
+async function speakAgentText(text) { 
+    if (!voiceResponseEnabled) return; 
+    
+    // Clean up markdown artifacts before sending to the TTS engine
+    const cleanText = text.replace(/[*#]/g, '').replace(/_/g, ' ');
+
+    try {
+        // Hit our local Termux Tiny TTS endpoint
+        const response = await fetch('http://127.0.0.1:5000/speak', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: cleanText })
+        });
+
+        if (!response.ok) throw new Error("Local TTS server offline");
+
+        // Convert the raw memory bytes into a playable browser blob
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        // 🚀 The Fileless Instant Playback
+        const audio = new Audio(audioUrl);
+        audio.playbackRate = 1.2; // ⚡ THE MAGIC 1.2x SPEED BOOST
+        audio.play();
+
+    } catch (error) {
+        console.error("Voice Engine Error:", error);
+        
+        // Failsafe: Fallback to the default Android voice if your Termux server is off
+        if (window.speechSynthesis) {
+            const fallback = new SpeechSynthesisUtterance(cleanText);
+            fallback.rate = 1.2;
+            window.speechSynthesis.speak(fallback);
+        }
+    }
 }
+
 
 function resetMicState() { 
     isListening = false; 
