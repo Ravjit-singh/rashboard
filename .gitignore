@@ -1,6 +1,6 @@
 # Dependency directories
 node_modules/
-
+dataset/
 # Environment variables & Secrets
 .env
 
