@@ -196,7 +196,7 @@ async function streamAPI(messages, res) {
     const payload = {
         model: modelTarget,
         messages: messages,
-        temperature: 0.2 // Slightly elevated to prevent generic repetitive phrasing
+        temperature: 0.2, // Slightly elevated to prevent generic repetitive phrasing
         stream: true //
     };
 
