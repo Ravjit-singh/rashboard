@@ -200,19 +200,15 @@ async function streamAPI(messages, res) {
     let visibleText = "";
     let toolCalls = [];
     
-    // 🛡️ DYNAMIC REGEX ROUTING: Parses syntax correctly based on the engine
-    let toolRegex;
     let toolMatchRegex;
-    
     if (isApi) {
-        toolRegex = /<[|/]?tool_call\|?>?|(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
         toolMatchRegex = /(?:<[|/]?tool_call\|?>?\s*)?(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)\s*(\{[\s\S]*?\})/i;
     } else {
-        toolRegex = /<[|/]?tool_call\|?>?|call:(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
         toolMatchRegex = /(?:<[|/]?tool_call\|?>?\s*)?call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i;
     }
 
-    const validTools = ['getProjectStatus', 'saveToMemory', 'removeFromMemory', 'sendEmail', 'querySupabaseDatabase'];
+    let isToolExecution = false;
+    let streamingDecided = false;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -228,56 +224,43 @@ async function streamAPI(messages, res) {
                     if (data.choices[0].delta.content) {
                         fullText += data.choices[0].delta.content;
                         
-                        // 🛡️ DYNAMIC STREAM SHIELD: Instantly scan for any leaked token structures
-                        const tagMatch = fullText.match(/<\|?tool(?:_call)?\|?>?/i);
-                        
-                        if (tagMatch) {
-                            const tag = tagMatch[0];
-                            const tagIndex = tagMatch.index;
-                            const textAfterTag = fullText.substring(tagIndex + tag.length);
-
-                            const startsWithTool = validTools.some(t => 
-                                textAfterTag.trim().toLowerCase().startsWith(t.toLowerCase()) ||
-                                textAfterTag.trim().toLowerCase().startsWith('call:' + t.toLowerCase())
-                            );
-
-                            if (startsWithTool) {
-                                const safeChunk = fullText.substring(0, tagIndex);
-                                const newText = safeChunk.substring(visibleText.length);
-                                if (newText.length > 0 && res) {
-                                    res.write(newText);
-                                    visibleText += newText;
-                                }
-                            } else {
-                                if (textAfterTag.length > 0 && !/^(?:call:)?(?:get|save|remove|send|query)/i.test(textAfterTag.trim())) {
-                                    fullText = fullText.substring(0, tagIndex) + textAfterTag;
-                                    const newText = fullText.substring(visibleText.length);
-                                    if (newText.length > 0 && res) {
-                                        res.write(newText);
-                                        visibleText += newText;
-                                    }
-                                } else {
-                                    const safeChunk = fullText.substring(0, tagIndex);
-                                    const newText = safeChunk.substring(visibleText.length);
-                                    if (newText.length > 0 && res) {
-                                        res.write(newText);
-                                        visibleText += newText;
-                                    }
+                        // 🛡️ DYNAMIC BUFFER SHIELD: Analyze the prefix of the stream instantly
+                        if (!streamingDecided) {
+                            if (fullText.length >= 25 || fullText.includes('{') || fullText.includes('\n')) {
+                                streamingDecided = true;
+                                // Test if the very beginning of the response is a tool signature
+                                if (/^(?:<[|/]?tool_call\|?>?\s*)?(?:call:)?(?:getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i.test(fullText.trim())) {
+                                    isToolExecution = true;
                                 }
                             }
-                        } else {
-                            if (!fullText.endsWith("<") && !fullText.endsWith("<|") && !fullText.endsWith("<|t") && !fullText.endsWith("<|to") && !fullText.endsWith("<|too") && !fullText.endsWith("<|tool") && !fullText.endsWith("call:")) {
-                                const newText = fullText.substring(visibleText.length);
-                                let cleanText = newText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
-                                if (cleanText.length > 0 && res) {
-                                    res.write(cleanText);
-                                    visibleText += cleanText; 
-                                }
+                        }
+
+                        // 🗣️ CHAT ROUTE: Only stream if we firmly decided it is normal conversation
+                        if (streamingDecided && !isToolExecution) {
+                            // Strip tags on the fly just in case of mid-sentence hallucination
+                            let cleanFullText = fullText
+                                .replace(/<[|/]?tool_call\|?>?/gi, '')
+                                .replace(/<end_of_turn>/gi, '')
+                                .replace(/<eos>/gi, '');
+                                
+                            let newText = cleanFullText.substring(visibleText.length);
+                            if (newText.length > 0 && res) {
+                                res.write(newText);
+                                visibleText += newText;
                             }
                         }
                     }
                 } catch (e) {}
             }
+        }
+    }
+    
+    // Failsafe for super short conversational responses (e.g., "Done.")
+    if (!streamingDecided && !isToolExecution) {
+        let cleanFullText = fullText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
+        if (cleanFullText.length > 0 && res) {
+            res.write(cleanFullText.substring(visibleText.length));
+            visibleText = cleanFullText;
         }
     }
     
@@ -294,15 +277,13 @@ async function streamAPI(messages, res) {
         return { content: visibleText, tool_calls: toolCalls };
     }
 
-    let scrubbedText = fullText
-        .replace(/<[|/]?tool_call\|?>?/gi, '')
-        .replace(/call:/gi, '')
-        .replace(/^(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i, '')
-        .trim();
-
-    if (visibleText === "" && scrubbedText.length > 0) {
-        if (res) res.write(scrubbedText);
-        visibleText = scrubbedText;
+    // Failsafe 2: If the model attempted a tool but crashed without providing valid JSON
+    if (isToolExecution && !toolMatch && res) {
+        let cleanFallback = fullText.replace(/<[|/]?tool_call\|?>?/gi, '').replace(/call:/gi, '').trim();
+        if (cleanFallback.length > 0) {
+            res.write(cleanFallback);
+            visibleText = cleanFallback;
+        }
     }
 
     return { content: visibleText, tool_calls: null };
