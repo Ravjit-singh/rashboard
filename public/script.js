@@ -745,3 +745,34 @@ function setupEventListeners() {
         });
     }
 }
+
+// --- 🌍 GLOBAL EXPORTS FOR HTML INLINE EVENTS (MODULE FIX) ---
+// By making script.js a module for the WASM engine, it isolates the scope.
+// We must attach UI functions directly to the global window so HTML buttons can click them.
+window.switchView = switchView;
+window.handleSearch = handleSearch;
+window.clearSearch = clearSearch;
+window.toggleGhPagesInput = toggleGhPagesInput;
+window.switchTab = switchTab;
+window.toggleExpand = toggleExpand;
+window.copyText = copyText;
+window.handleDragOver = handleDragOver;
+window.handleDragLeave = handleDragLeave;
+window.handleDrop = handleDrop;
+window.handleFileInput = handleFileInput;
+window.openCreator = openCreator;
+window.editProject = editProject;
+window.handleBackdropClick = handleBackdropClick;
+window.closeCreator = closeCreator;
+window.backToStep1 = backToStep1;
+window.processEnv = processEnv;
+window.addNewRow = addNewRow;
+window.removeTempVar = removeTempVar;
+window.updateTempVar = updateTempVar;
+window.saveProject = saveProject;
+window.deleteProject = deleteProject;
+window.exportData = exportData;
+window.importData = importData;
+window.clearAllData = clearAllData;
+window.forcePing = forcePing;
+window.clearChat = clearChat;
