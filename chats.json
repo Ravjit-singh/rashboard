@@ -62,5 +62,21 @@
   {
     "role": "assistant",
     "content": "<|tool_call|>querySupabase It seems that Devstore has a collection of files related to various projects, including web development, app development, and more. Some of the files include a Devstore feature roadmap, a Termux APK, and standalone files for projects like rmusic, Skillmax, and Rchat. These files are stored in a centralized library, making it easy to access and manage them."
+  },
+  {
+    "role": "user",
+    "content": "Tell me about professionals in service linkup , name them too"
+  },
+  {
+    "role": "assistant",
+    "content": "<|tool Based on the data, it appears that Service Linkup has three professionals listed:\n\n1. Ravjit Singh - a full-stack developer with 4 years of experience, based in Chandigarh.\n2. Aditya Kumar - a full-stack developer with 4 years of experience, also based in Chandigarh.\n3. Vipin Kumar - a video editor and script writer with 1 year of experience, based in Panchkula.\n\nThese professionals have been verified and have their own profiles on Service Linkup, including their contact information, experience, and portfolio."
+  },
+  {
+    "role": "user",
+    "content": "Tell me complete info about ravjit singh"
+  },
+  {
+    "role": "assistant",
+    "content": "<|tool Based on the data, Ravjit Singh is a full-stack developer with 4 years of experience, based in Chandigarh. He has a verified profile on Service Linkup, with a bio that mentions his ability to bring ideas into reality. His contact information includes an email address, phone number, and a base price for his services, which is \"Contact for price\". He has a rating of 0 and has been verified as a professional on the platform. Additionally, he has a portfolio that includes links to his work, which can be accessed through Google Drive."
   }
 ]

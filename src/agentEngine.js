@@ -60,7 +60,7 @@ async function executeTool(toolName, toolArgs) {
             const memory = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8'));
             if (memory[toolArgs.topic]) {
                 delete memory[toolArgs.topic];
-                fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
+                fs.writeFileSync(memory[toolArgs.topic], JSON.stringify(memory, null, 2));
                 return JSON.stringify({ success: `Memory '${toolArgs.topic}' has been permanently wiped.` });
             } else { return JSON.stringify({ error: `Could not find memory key '${toolArgs.topic}'.` }); }
         } catch (error) { return JSON.stringify({ error: "Failed to access memory disk." }); }
@@ -200,17 +200,14 @@ async function streamAPI(messages, res) {
     let visibleText = "";
     let toolCalls = [];
     
-    // 🛡️ ACCENT ARMOR: Added fallback grouping to instantly catch formatting mutations like <|tool_call|>
-    let toolRegex;
     let toolMatchRegex;
-    
     if (isGroq) {
-        toolRegex = /<[|/]?tool_call\|?>?|(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
         toolMatchRegex = /(?:<[|/]?tool_call\|?>?\s*)?(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)\s*(\{[\s\S]*?\})/i;
     } else {
-        toolRegex = /<[|/]?tool_call\|?>?|call:(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
         toolMatchRegex = /(?:<[|/]?tool_call\|?>?\s*)?call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i;
     }
+
+    const validTools = ['getProjectStatus', 'saveToMemory', 'removeFromMemory', 'sendEmail', 'querySupabaseDatabase'];
 
     while (true) {
         const { done, value } = await reader.read();
@@ -225,24 +222,58 @@ async function streamAPI(messages, res) {
                     const data = JSON.parse(line.slice(6));
                     if (data.choices[0].delta.content) {
                         fullText += data.choices[0].delta.content;
-                        const toolStartIndex = fullText.search(toolRegex);
                         
-                        if (toolStartIndex === -1) {
-                            if (!fullText.endsWith("<") && !fullText.endsWith("<|") && !fullText.endsWith("call:")) {
+                        // 🛡️ DYNAMIC STREAM SHIELD: Instantly scan for any leaked token structures
+                        const tagMatch = fullText.match(/<\|?tool(?:_call)?\|?>?/i);
+                        
+                        if (tagMatch) {
+                            const tag = tagMatch[0];
+                            const tagIndex = tagMatch.index;
+                            const textAfterTag = fullText.substring(tagIndex + tag.length);
+
+                            // Check if the model is genuinely executing a tool code block
+                            const startsWithTool = validTools.some(t => 
+                                textAfterTag.trim().toLowerCase().startsWith(t.toLowerCase()) ||
+                                textAfterTag.trim().toLowerCase().startsWith('call:' + t.toLowerCase())
+                            );
+
+                            if (startsWithTool) {
+                                // Real Tool Call in progress -> Silence everything from the stream
+                                const safeChunk = fullText.substring(0, tagIndex);
+                                const newText = safeChunk.substring(visibleText.length);
+                                if (newText.length > 0 && res) {
+                                    res.write(newText);
+                                    visibleText += newText;
+                                }
+                            } else {
+                                // If the model typed normal text right after the leaked tag (e.g., <|toolBased), 
+                                // we slice the corrupted tag cleanly out of the memory timeline on-the-fly.
+                                if (textAfterTag.length > 0 && !/^(?:call:)?(?:get|save|remove|send|query)/i.test(textAfterTag.trim())) {
+                                    fullText = fullText.substring(0, tagIndex) + textAfterTag;
+                                    const newText = fullText.substring(visibleText.length);
+                                    if (newText.length > 0 && res) {
+                                        res.write(newText);
+                                        visibleText += newText;
+                                    }
+                                } else {
+                                    // It might still be spelling out the tool name -> Hold it in the layout buffer
+                                    const safeChunk = fullText.substring(0, tagIndex);
+                                    const newText = safeChunk.substring(visibleText.length);
+                                    if (newText.length > 0 && res) {
+                                        res.write(newText);
+                                        visibleText += newText;
+                                    }
+                                }
+                            }
+                        } else {
+                            // Standard lookahead check to prevent token fragment artifacts
+                            if (!fullText.endsWith("<") && !fullText.endsWith("<|") && !fullText.endsWith("<|t") && !fullText.endsWith("<|to") && !fullText.endsWith("<|too") && !fullText.endsWith("<|tool") && !fullText.endsWith("call:")) {
                                 const newText = fullText.substring(visibleText.length);
                                 let cleanText = newText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
                                 if (cleanText.length > 0 && res) {
                                     res.write(cleanText);
                                     visibleText += cleanText; 
                                 }
-                            }
-                        } else {
-                            const safeText = fullText.substring(0, toolStartIndex);
-                            const newText = safeText.substring(visibleText.length);
-                            let cleanText = newText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
-                            if (cleanText.length > 0 && res) {
-                                res.write(cleanText);
-                                visibleText += cleanText;
                             }
                         }
                     }
@@ -264,8 +295,7 @@ async function streamAPI(messages, res) {
         return { content: visibleText, tool_calls: toolCalls };
     }
 
-    // 🧼 AUTOMATED FALLBACK SCRUBBER: If the cloud model leaks syntax fragments without outputting actual executable JSON,
-    // we scrub the ugly internal tags completely so it returns a clean conversational block to the user.
+    // Final insurance processing loop to filter out system codes
     let scrubbedText = fullText
         .replace(/<[|/]?tool_call\|?>?/gi, '')
         .replace(/call:/gi, '')
