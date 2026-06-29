@@ -200,18 +200,16 @@ async function streamAPI(messages, res) {
     let visibleText = "";
     let toolCalls = [];
     
-    // ⚡ DYNAMIC REGEX ROUTING: Parses syntax correctly based on the engine
+    // 🛡️ ACCENT ARMOR: Added fallback grouping to instantly catch formatting mutations like <|tool_call|>
     let toolRegex;
     let toolMatchRegex;
     
     if (isGroq) {
-        // Groq/Llama dialect
-        toolRegex = /<[|/]?tool_call>|(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
-        toolMatchRegex = /(?:<[|/]?tool_call>\s*)?(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)\s*(\{[\s\S]*?\})/i;
+        toolRegex = /<[|/]?tool_call\|?>?|(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
+        toolMatchRegex = /(?:<[|/]?tool_call\|?>?\s*)?(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)\s*(\{[\s\S]*?\})/i;
     } else {
-        // Local/Gemma dialect
-        toolRegex = /<[|/]?tool_call>|call:(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
-        toolMatchRegex = /(?:<[|/]?tool_call>\s*)?call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i;
+        toolRegex = /<[|/]?tool_call\|?>?|call:(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
+        toolMatchRegex = /(?:<[|/]?tool_call\|?>?\s*)?call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i;
     }
 
     while (true) {
@@ -266,6 +264,19 @@ async function streamAPI(messages, res) {
         return { content: visibleText, tool_calls: toolCalls };
     }
 
+    // 🧼 AUTOMATED FALLBACK SCRUBBER: If the cloud model leaks syntax fragments without outputting actual executable JSON,
+    // we scrub the ugly internal tags completely so it returns a clean conversational block to the user.
+    let scrubbedText = fullText
+        .replace(/<[|/]?tool_call\|?>?/gi, '')
+        .replace(/call:/gi, '')
+        .replace(/^(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i, '')
+        .trim();
+
+    if (visibleText === "" && scrubbedText.length > 0) {
+        if (res) res.write(scrubbedText);
+        visibleText = scrubbedText;
+    }
+
     return { content: visibleText, tool_calls: null };
 }
 
@@ -279,7 +290,6 @@ async function runAgent(userPrompt, res) {
     const mode = (process.env.AI_MODE || "local").trim().toLowerCase();
     const isGroq = mode === "groq";
 
-    // ⚡ DYNAMIC PROMPT ROUTING: Shapes the rules based on the engine
     let toolsInstructions = `[AVAILABLE TOOLS]
 - getProjectStatus { "projectName": "string" }
 - saveToMemory { "topic": "string", "information": "string" }
