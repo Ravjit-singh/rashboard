@@ -1,54 +1,6 @@
 [
   {
     "role": "user",
-    "content": "Tell me about Ravjit Singh from service linkup"
-  },
-  {
-    "role": "assistant",
-    "content": "Ravjit Singh is the creator of Service Linkup."
-  },
-  {
-    "role": "user",
-    "content": "Tell me about professionals table in service linkup"
-  },
-  {
-    "role": "assistant",
-    "content": "Here is the information about the professionals table in Service Linkup. It lists three individuals: Ravjit Singh, Aditya Kumar, and Vipin kumar.\n\nRavjit Singh is listed as a Developer with 4 years of experience. Aditya Kumar is also a Developer with 4 years of experience. Vipin kumar is listed as a Video editing and script writing professional with 1 year of experience."
-  },
-  {
-    "role": "user",
-    "content": "Tell about Ravjit Singh in detail"
-  },
-  {
-    "role": "assistant",
-    "content": "Ravjit Singh is the creator of Rashboard and other projects such as Service Linkup, YourHost, and Devstore."
-  },
-  {
-    "role": "user",
-    "content": "No I mean give me information about Ravjit Singh which is available on service linkup"
-  },
-  {
-    "role": "assistant",
-    "content": "Ravjit Singh is listed as a Developer with 4 years of experience in the professionals table of Service Linkup."
-  },
-  {
-    "role": "user",
-    "content": "Give his all details in detail from service linkup"
-  },
-  {
-    "role": "assistant",
-    "content": "Here is the detailed information about Ravjit Singh from Service Linkup:\n\n**Ravjit Singh's Profile in Service Linkup:**\n\n*   **Role:** Developer\n*   **Experience:** 4 years\n\nHe is listed alongside Aditya Kumar as a Developer with 4 years of experience."
-  },
-  {
-    "role": "user",
-    "content": "Now mail this information to juthabanda@gmail.com with subject \"Ravjit Singh\""
-  },
-  {
-    "role": "assistant",
-    "content": "The information regarding Ravjit Singh from Service Linkup has been successfully sent to juthabanda@gmail.com with the subject \"Ravjit Singh\"."
-  },
-  {
-    "role": "user",
     "content": "Tell me everything about yourhost along with its Install command"
   },
   {
@@ -78,5 +30,53 @@
   {
     "role": "assistant",
     "content": "I have sent the details about YourHost to sukhjitsingh5737@gmail.com with the subject \"Yourhost use krke dekh mera\"."
+  },
+  {
+    "role": "user",
+    "content": "Hey tell me about Rashboard"
+  },
+  {
+    "role": "assistant",
+    "content": "Rashboard is a local dashboard application created by Ravjit Singh. It is designed to centralize and manage sensitive project information, including API keys, passwords, and other details, providing a single platform for project management."
+  },
+  {
+    "role": "user",
+    "content": "Now mail this to sainisukhi55124@gmail.com with subject \"Rashboard query\""
+  },
+  {
+    "role": "assistant",
+    "content": "I have successfully sent the information regarding Rashboard to sainisukhi55124@gmail.com with the subject \"Rashboard query\"."
+  },
+  {
+    "role": "user",
+    "content": "Tell me about files table in devstore"
+  },
+  {
+    "role": "assistant",
+    "content": "I couldn't find a table named 'files' in the database."
+  },
+  {
+    "role": "user",
+    "content": "Tell me about assets table in devstore"
+  },
+  {
+    "role": "assistant",
+    "content": "I've gathered the details about the assets in the Devstore. It looks like there are several files available, including `devstore.html`, `rmusic.html`, `skillmax_mk2.html`, `rassistantui.html`, a roadmap document, a `termux.apk` file, and a file for `rchat.html`."
+  },
+  {
+    "role": "user",
+    "content": "Now mail this information to \"sainisukhi55124@gmail.com\" with subject \"Daddy ji dekho billu ka bn gya\""
+  },
+  {
+    "role": "assistant",
+    "content": "I have successfully sent the information to sainisukhi55124@gmail.com with the subject \"Daddy ji dekho billu ka bn gya\"."
+  },
+  {
+    "role": "user",
+    "content": "Also remember when I say \"files\" table in devstore, I mean \"assets\" table in devstore, remember this"
+  },
+  {
+    "role": "assistant",
+    "content": "Understood. I have noted that when you refer to the \"files\" table in Devstore, you are specifically referring to the \"assets\" table."
   }
 ]

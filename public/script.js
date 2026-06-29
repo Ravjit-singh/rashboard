@@ -518,8 +518,13 @@ async function initTTSModel() {
     if (ttsPipeline || isModelLoading) return;
     isModelLoading = true;
     try {
+        showToast("Downloading Neural Voice (Takes 10-30s first time)...", "success");
+
         // Dynamically import the Hugging Face WASM engine
         const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers');
+        
+        // FIX 1: Explicitly tell Android where to find the WASM binary files so they don't 404
+        env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/';
         
         // Optimize for mobile browser hardware
         env.allowLocalModels = false;
@@ -527,12 +532,14 @@ async function initTTSModel() {
         
         console.log("[SYSTEM] Downloading & caching Neural Voice...");
         
-        // Load the TTS model directly into the browser
-        ttsPipeline = await pipeline('text-to-speech', 'Xenova/vits-ljs'); 
+        // FIX 2: Force 'quantized: true' to ensure the tiny version loads (prevents Android RAM crashes)
+        ttsPipeline = await pipeline('text-to-speech', 'Xenova/vits-ljs', { quantized: true }); 
         
+        showToast("Neural Voice Ready!", "success");
         console.log("[SYSTEM] Neural Voice Ready.");
     } catch (err) {
-        console.error("Failed to load WASM model:", err);
+        console.error("WASM INIT ERROR:", err);
+        showToast("AI Boot Error: " + err.message, "error");
     }
     isModelLoading = false;
 }
@@ -544,11 +551,11 @@ async function speakAgentText(text) {
 
     try {
         if (!ttsPipeline) {
-            console.log("Model not ready, initializing now...");
+            showToast("Initializing voice engine...", "success");
             await initTTSModel();
+            if (!ttsPipeline) throw new Error("Model failed to initialize.");
         }
 
-        // Run the neural network natively on hardware via JS
         const result = await ttsPipeline(cleanText);
         
         // The engine outputs raw Float32 audio data. Convert it to a standard browser Audio blob.
@@ -559,10 +566,19 @@ async function speakAgentText(text) {
         // 🚀 Instant playback at 1.2x speed
         const audio = new Audio(audioUrl);
         audio.playbackRate = 1.2; 
-        audio.play();
+        
+        // FIX 3: Catch Android blocking asynchronous media playback
+        audio.play().catch(e => {
+            console.error("Playback blocked by Android:", e);
+            throw new Error("Android blocked audio playback.");
+        });
 
     } catch (error) {
         console.error("WASM Voice Engine Error:", error);
+        
+        // This will now pop up on your screen telling us EXACTLY why it failed
+        showToast("Using Native Voice. Error: " + (error.message || "Unknown Engine Crash"), "error");
+        
         // Instant failsafe
         if (window.speechSynthesis) {
             const fallback = new SpeechSynthesisUtterance(cleanText);
@@ -574,24 +590,26 @@ async function speakAgentText(text) {
 
 // 3. Helper to wrap raw Float32 neural audio into a playable WAV file
 function encodeWAV(samples, sampleRate) {
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const rawSamples = samples.data ? samples.data : samples; // Failsafe for Tensor objects
+    const buffer = new ArrayBuffer(44 + rawSamples.length * 2);
     const view = new DataView(buffer);
     const writeString = (view, offset, string) => { for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i)); };
     
-    writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + rawSamples.length * 2, true);
     writeString(view, 8, 'WAVE'); writeString(view, 12, 'fmt ');
     view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
     view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
     view.setUint16(32, 2, true); view.setUint16(34, 16, true); writeString(view, 36, 'data');
-    view.setUint32(40, samples.length * 2, true);
+    view.setUint32(40, rawSamples.length * 2, true);
     
     let offset = 44;
-    for (let i = 0; i < samples.length; i++, offset += 2) {
-        let s = Math.max(-1, Math.min(1, samples[i]));
+    for (let i = 0; i < rawSamples.length; i++, offset += 2) {
+        let s = Math.max(-1, Math.min(1, rawSamples[i]));
         view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
     }
     return buffer;
 }
+
 
 
 function resetMicState() { 
