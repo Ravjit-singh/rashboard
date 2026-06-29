@@ -4,9 +4,6 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const nodemailer = require('nodemailer');
 const { getHistory, addMessage } = require('./contextWindow'); 
 
-// The hardcoded LOCAL_API_URL is removed. The engine now dynamically 
-// pulls the endpoint and model from your .env file via streamAPI().
-
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
 const TEMPLATE_FILE = path.join(__dirname, 'emailTemplate.html');
 
@@ -45,19 +42,6 @@ function retrieveRelevantMemories(prompt, memoryObj) {
     topMemories.forEach(m => { contextString += `- [${m.topic}]: ${m.info}\n`; });
     return contextString;
 }
-
-const toolsInstructions = `
-[AVAILABLE TOOLS]
-- getProjectStatus { "projectName": "string" }
-- saveToMemory { "topic": "string", "information": "string" }
-- removeFromMemory { "topic": "string" }
-- sendEmail { "to": "string", "subject": "string", "body": "string" }
-- querySupabaseDatabase { "projectName": "string", "tableName": "string", "queryType": "count_only" or "fetch_data" }
-
-TOOL USAGE STRICT RULE:
-If you need to invoke a tool, your ENTIRE response must consist ONLY of the tool call syntax. Do not say "I will check" or "Sending email...". Just output the exact tag:
-<|tool_call>call:FunctionName{"key": "value"}
-`;
 
 async function executeTool(toolName, toolArgs) {
     console.log(`[AGENT] Executing tool: ${toolName}`);
@@ -174,19 +158,17 @@ async function executeTool(toolName, toolArgs) {
 
 // 🌐 THE UNIFIED AGENT ENGINE 
 async function streamAPI(messages, res) {
-    const mode = (process.env.AI_MODE || "local").toLowerCase();
+    const mode = (process.env.AI_MODE || "local").trim().toLowerCase();
     const isGroq = mode === "groq";
 
-    // 1. Dynamic Endpoint & Model Routing
     const endpoint = isGroq 
         ? "https://api.groq.com/openai/v1/chat/completions" 
         : (process.env.LOCAL_API_URL || "http://127.0.0.1:8080/v1/chat/completions");
         
     const modelTarget = isGroq 
-        ? (process.env.GROQ_MODEL || "gemma2-9b-it") 
+        ? (process.env.GROQ_MODEL || "llama-3.1-8b-instant") 
         : (process.env.LOCAL_MODEL || "gemma-4-e2b-it");
 
-    // 2. Dynamic Headers (Groq needs Auth, Local doesn't)
     const headers = { "Content-Type": "application/json" };
     if (isGroq) {
         if (!process.env.GROQ_API_KEY) throw new Error("GROQ_API_KEY missing in .env");
@@ -196,8 +178,8 @@ async function streamAPI(messages, res) {
     const payload = {
         model: modelTarget,
         messages: messages,
-        temperature: 0.2, // Slightly elevated to prevent generic repetitive phrasing
-        stream: true //
+        temperature: 0.2,
+        stream: true
     };
 
     const fetchRes = await fetch(endpoint, {
@@ -217,7 +199,20 @@ async function streamAPI(messages, res) {
     let fullText = "";
     let visibleText = "";
     let toolCalls = [];
-    const toolRegex = /<[|/]?tool_call>|call:(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
+    
+    // ⚡ DYNAMIC REGEX ROUTING: Parses syntax correctly based on the engine
+    let toolRegex;
+    let toolMatchRegex;
+    
+    if (isGroq) {
+        // Groq/Llama dialect
+        toolRegex = /<[|/]?tool_call>|(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
+        toolMatchRegex = /(?:<[|/]?tool_call>\s*)?(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)\s*(\{[\s\S]*?\})/i;
+    } else {
+        // Local/Gemma dialect
+        toolRegex = /<[|/]?tool_call>|call:(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
+        toolMatchRegex = /(?:<[|/]?tool_call>\s*)?call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i;
+    }
 
     while (true) {
         const { done, value } = await reader.read();
@@ -258,7 +253,7 @@ async function streamAPI(messages, res) {
         }
     }
     
-    const toolMatch = fullText.match(/(?:<[|/]?tool_call>\s*)?call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i);
+    const toolMatch = fullText.match(toolMatchRegex);
     if (toolMatch) {
         const funcName = toolMatch[1];
         let argString = toolMatch[2].replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3'); 
@@ -280,8 +275,27 @@ async function runAgent(userPrompt, res) {
 
     const activeMemoryContext = retrieveRelevantMemories(userPrompt, memoryData);
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
+    
+    const mode = (process.env.AI_MODE || "local").trim().toLowerCase();
+    const isGroq = mode === "groq";
 
-    // ⚡ IMMERSION FIX: The psychological boundaries
+    // ⚡ DYNAMIC PROMPT ROUTING: Shapes the rules based on the engine
+    let toolsInstructions = `[AVAILABLE TOOLS]
+- getProjectStatus { "projectName": "string" }
+- saveToMemory { "topic": "string", "information": "string" }
+- removeFromMemory { "topic": "string" }
+- sendEmail { "to": "string", "subject": "string", "body": "string" }
+- querySupabaseDatabase { "projectName": "string", "tableName": "string", "queryType": "count_only" or "fetch_data" }
+
+TOOL USAGE STRICT RULE:
+If you need to invoke a tool, your ENTIRE response must consist ONLY of the exact tool syntax. Do not narrate your actions. `;
+
+    if (isGroq) {
+        toolsInstructions += `Just output exactly:\n<|tool_call>FunctionName{"key": "value"}`;
+    } else {
+        toolsInstructions += `Just output exactly:\n<|tool_call>call:FunctionName{"key": "value"}`;
+    }
+
     const systemPrompt = `You are Rashboard, an elite AI engineering assistant natively integrated into this environment.
     Your directive is to seamlessly manage backend infrastructure, deployments, and data.
 
@@ -317,7 +331,6 @@ async function runAgent(userPrompt, res) {
 
                 const functionResponse = await executeTool(toolCall.function.name, parsedArgs);
 
-                // ⚡ ANTI-ECHO FIX: Force the AI to synthesize the data instead of blindly repeating it
                 messages.push({ 
                     role: "user", 
                     content: `[SYSTEM COMMAND: TOOL EXECUTION COMPLETE]\nResult Data: ${functionResponse}\n\nTask: Deliver this final information to the user in a smooth, conversational manner. Do not repeat the raw data, and do not mention that you used a tool.` 
@@ -330,7 +343,6 @@ async function runAgent(userPrompt, res) {
             if (totalCleanResponse) {
                 addMessage({ role: "assistant", content: totalCleanResponse });
             } else {
-                // Failsafe string that won't echo
                 const fallback = "Process finished successfully.";
                 if (res) res.write(fallback);
                 addMessage({ role: "assistant", content: fallback });
