@@ -5,22 +5,30 @@
   },
   {
     "role": "assistant",
-    "content": "Rashboard is a local dashboard application to keep records of project's API,, and other sensitive in one place. It to provide a platform for managing and accessing project."
+    "content": "Rashboard is a local dashboard application designed to keep records of a project's API, password, and other sensitive information in one place. It aims to provide a centralized platform for managing and accessing project details."
   },
   {
     "role": "user",
-    "content": "Now mail this info to \"juthabanda@gmail.com\" with subject \"chla kya?\""
+    "content": "Great now mail this information to sukhjitsingh5737@gmail.com with subject \"check\""
   },
   {
     "role": "assistant",
-    "content": "sendEmail{\"to\": \"juthabanda@gmail.com\", \"subject\": \"chla kya?\", \"body\": \"Rashboard is a local dashboard application to keep records of project's API, and other sensitive in one place. It to provide a platform for managing and accessing project.\"} Your email has been sent successfully to juthabanda@gmail.com. The subject is \"chla kya?\" and the body contains the information about Rashboard."
+    "content": "Your email has been sent successfully. The subject is \"check\" and it contains the information about Rashboard."
   },
   {
     "role": "user",
-    "content": "Now mail the same info to sukhjitsingh5737@gmail.com"
+    "content": "Tell me about yourhost"
   },
   {
     "role": "assistant",
-    "content": "sendEmail{\"to\": \"sukhjitsingh5737@gmail.com\", \"subject\": \"chla kya?\", \"body\": \"Rashboard is a local dashboard application to keep records of project's API, and other sensitive in one place. It to provide a platform for managing and accessing project.\"} The emails have been sent successfully. You should now receive a confirmation that the emails were delivered to juthabanda@gmail.com and sukhjitsingh5737@gmail.com."
+    "content": "YourHost is a self-hosting platform for Minecraft server hosting needs. It allows users to manage their servers and hosting services with a simple and intuitive interface."
+  },
+  {
+    "role": "user",
+    "content": "Great now mail this info to juthabanda@gmail.com with subject \"checking\""
+  },
+  {
+    "role": "assistant",
+    "content": "I have successfully sent the information to the recipient."
   }
 ]
