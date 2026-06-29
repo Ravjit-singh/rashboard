@@ -197,6 +197,7 @@ async function streamAPI(messages, res) {
         model: modelTarget,
         messages: messages,
         temperature: 0.2 // Slightly elevated to prevent generic repetitive phrasing
+        stream: true //
     };
 
     const fetchRes = await fetch(endpoint, {

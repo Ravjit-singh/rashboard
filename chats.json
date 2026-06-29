@@ -1,82 +1,18 @@
 [
   {
     "role": "user",
-    "content": "Tell me everything about yourhost along with its Install command"
-  },
-  {
-    "role": "assistant",
-    "content": "YourHost is a self-hosting platform for Minecraft server hosting needs, allowing users to manage their servers and hosting services with a simple and intuitive interface.\n\nThe installation command for YourHost is: `curl -sL https://raw.githubusercontent.com/Ravjit-singh/yourhost/main/install.sh | bash`"
+    "content": "Tell me about devstore"
   },
   {
     "role": "user",
-    "content": "Great now mail this information to juthabanda@gmail.com with subject \"YourHost\""
-  },
-  {
-    "role": "assistant",
-    "content": "I have successfully sent the information about YourHost to juthabanda@gmail.com with the subject \"YourHost\"."
+    "content": "Tell me about devstore"
   },
   {
     "role": "user",
-    "content": "What are the urls for Yourhost like where is it deployed etc and all I want full details"
-  },
-  {
-    "role": "assistant",
-    "content": "YourHost is a self-hosting platform designed for Minecraft server hosting. You can manage your servers and hosting services through a simple and intuitive interface.\n\nThe main URL for YourHost is `https://ravjit-singh.github.io/yourhost`.\n\nThe installation command to set up YourHost is: `curl -sL https://raw.githubusercontent.com/Ravjit-singh/yourhost/main/install.sh | bash`."
+    "content": "Tell me about devstore"
   },
   {
     "role": "user",
-    "content": "Mail these details to sukhjitsingh5737@gmail.com with subject \"Yourhost use krke dekh mera\""
-  },
-  {
-    "role": "assistant",
-    "content": "I have sent the details about YourHost to sukhjitsingh5737@gmail.com with the subject \"Yourhost use krke dekh mera\"."
-  },
-  {
-    "role": "user",
-    "content": "Hey tell me about Rashboard"
-  },
-  {
-    "role": "assistant",
-    "content": "Rashboard is a local dashboard application created by Ravjit Singh. It is designed to centralize and manage sensitive project information, including API keys, passwords, and other details, providing a single platform for project management."
-  },
-  {
-    "role": "user",
-    "content": "Now mail this to sainisukhi55124@gmail.com with subject \"Rashboard query\""
-  },
-  {
-    "role": "assistant",
-    "content": "I have successfully sent the information regarding Rashboard to sainisukhi55124@gmail.com with the subject \"Rashboard query\"."
-  },
-  {
-    "role": "user",
-    "content": "Tell me about files table in devstore"
-  },
-  {
-    "role": "assistant",
-    "content": "I couldn't find a table named 'files' in the database."
-  },
-  {
-    "role": "user",
-    "content": "Tell me about assets table in devstore"
-  },
-  {
-    "role": "assistant",
-    "content": "I've gathered the details about the assets in the Devstore. It looks like there are several files available, including `devstore.html`, `rmusic.html`, `skillmax_mk2.html`, `rassistantui.html`, a roadmap document, a `termux.apk` file, and a file for `rchat.html`."
-  },
-  {
-    "role": "user",
-    "content": "Now mail this information to \"sainisukhi55124@gmail.com\" with subject \"Daddy ji dekho billu ka bn gya\""
-  },
-  {
-    "role": "assistant",
-    "content": "I have successfully sent the information to sainisukhi55124@gmail.com with the subject \"Daddy ji dekho billu ka bn gya\"."
-  },
-  {
-    "role": "user",
-    "content": "Also remember when I say \"files\" table in devstore, I mean \"assets\" table in devstore, remember this"
-  },
-  {
-    "role": "assistant",
-    "content": "Understood. I have noted that when you refer to the \"files\" table in Devstore, you are specifically referring to the \"assets\" table."
+    "content": "Tell me about devstore"
   }
 ]
