@@ -7,7 +7,7 @@ const cors = require('cors');
 const cron = require('node-cron');
 
 // We no longer require the static projects.config file!
-const { runAgent } = require('./groqAgent');
+const { runAgent } = require('./agentEngine');
 const { loadChats } = require('./database');
 const { clearHistory } = require('./contextWindow');
 
