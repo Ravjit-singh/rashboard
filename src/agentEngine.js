@@ -4,7 +4,9 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const nodemailer = require('nodemailer');
 const { getHistory, addMessage } = require('./contextWindow'); 
 
-const LOCAL_API_URL = "http://127.0.0.1:8080/v1/chat/completions";
+// The hardcoded LOCAL_API_URL is removed. The engine now dynamically 
+// pulls the endpoint and model from your .env file via streamAPI().
+
 const MEMORY_FILE = path.join(__dirname, '../memory.json');
 const TEMPLATE_FILE = path.join(__dirname, 'emailTemplate.html');
 
@@ -170,20 +172,43 @@ async function executeTool(toolName, toolArgs) {
     return JSON.stringify({ error: "Unknown tool called." });
 }
 
-async function streamLocalAPI(messages, res) {
+// 🌐 THE UNIFIED AGENT ENGINE 
+async function streamAPI(messages, res) {
+    const mode = (process.env.AI_MODE || "local").toLowerCase();
+    const isGroq = mode === "groq";
+
+    // 1. Dynamic Endpoint & Model Routing
+    const endpoint = isGroq 
+        ? "https://api.groq.com/openai/v1/chat/completions" 
+        : (process.env.LOCAL_API_URL || "http://127.0.0.1:8080/v1/chat/completions");
+        
+    const modelTarget = isGroq 
+        ? (process.env.GROQ_MODEL || "gemma2-9b-it") 
+        : (process.env.LOCAL_MODEL || "gemma-4-e2b-it");
+
+    // 2. Dynamic Headers (Groq needs Auth, Local doesn't)
+    const headers = { "Content-Type": "application/json" };
+    if (isGroq) {
+        if (!process.env.GROQ_API_KEY) throw new Error("GROQ_API_KEY missing in .env");
+        headers["Authorization"] = `Bearer ${process.env.GROQ_API_KEY}`;
+    }
+
     const payload = {
-        model: "gemma-4-e2b-it",
+        model: modelTarget,
         messages: messages,
         temperature: 0.2 // Slightly elevated to prevent generic repetitive phrasing
     };
 
-    const fetchRes = await fetch(LOCAL_API_URL, {
+    const fetchRes = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: headers,
         body: JSON.stringify(payload)
     });
 
-    if (!fetchRes.ok) throw new Error("Local AI Offline");
+    if (!fetchRes.ok) {
+        const errText = await fetchRes.text();
+        throw new Error(`AI Engine Offline [${fetchRes.status}]: ${errText}`);
+    }
 
     const reader = fetchRes.body.getReader();
     const decoder = new TextDecoder('utf-8');
@@ -256,8 +281,8 @@ async function runAgent(userPrompt, res) {
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
 
     // ⚡ IMMERSION FIX: The psychological boundaries
-    const systemPrompt = `You are Rashboard, an elite AI engineering assistant running natively on Ravjit's OnePlus GPU.
-    Your directive is to seamlessly manage his backend infrastructure, deployments, and data.
+    const systemPrompt = `You are Rashboard, an elite AI engineering assistant natively integrated into this environment.
+    Your directive is to seamlessly manage backend infrastructure, deployments, and data.
 
     CRITICAL RULES OF ENGAGEMENT:
     1. NEVER narrate your internal processes. 
@@ -279,7 +304,7 @@ async function runAgent(userPrompt, res) {
     ];
 
     try {
-        let responseMessage = await streamLocalAPI(messages, res);
+        let responseMessage = await streamAPI(messages, res);
         
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
             
@@ -298,7 +323,7 @@ async function runAgent(userPrompt, res) {
                 });
             }
 
-            const finalResponse = await streamLocalAPI(messages, res);
+            const finalResponse = await streamAPI(messages, res);
             const totalCleanResponse = (responseMessage.content + " " + finalResponse.content).trim();
             
             if (totalCleanResponse) {
@@ -320,7 +345,7 @@ async function runAgent(userPrompt, res) {
         }
     } catch (error) {
         console.error("[AGENT ERROR]", error);
-        if (res && !res.headersSent) res.write("System failure: Local AI engine offline.");
+        if (res && !res.headersSent) res.write("System failure: AI engine offline. Please check your .env configuration and ensure the server is running.");
         return null;
     }
 }
