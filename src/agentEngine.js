@@ -60,7 +60,7 @@ async function executeTool(toolName, toolArgs) {
             const memory = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8'));
             if (memory[toolArgs.topic]) {
                 delete memory[toolArgs.topic];
-                fs.writeFileSync(memory[toolArgs.topic], JSON.stringify(memory, null, 2));
+                fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
                 return JSON.stringify({ success: `Memory '${toolArgs.topic}' has been permanently wiped.` });
             } else { return JSON.stringify({ error: `Could not find memory key '${toolArgs.topic}'.` }); }
         } catch (error) { return JSON.stringify({ error: "Failed to access memory disk." }); }
@@ -159,20 +159,20 @@ async function executeTool(toolName, toolArgs) {
 // 🌐 THE UNIFIED AGENT ENGINE 
 async function streamAPI(messages, res) {
     const mode = (process.env.AI_MODE || "local").trim().toLowerCase();
-    const isGroq = mode === "groq";
+    const isApi = mode === "api";
 
-    const endpoint = isGroq 
-        ? "https://api.groq.com/openai/v1/chat/completions" 
+    const endpoint = isApi 
+        ? (process.env.API_BASE_URL || "https://api.groq.com/openai/v1/chat/completions") 
         : (process.env.LOCAL_API_URL || "http://127.0.0.1:8080/v1/chat/completions");
         
-    const modelTarget = isGroq 
-        ? (process.env.GROQ_MODEL || "llama-3.1-8b-instant") 
+    const modelTarget = isApi 
+        ? (process.env.API_MODEL || "llama-3.1-8b-instant") 
         : (process.env.LOCAL_MODEL || "gemma-4-e2b-it");
 
     const headers = { "Content-Type": "application/json" };
-    if (isGroq) {
-        if (!process.env.GROQ_API_KEY) throw new Error("GROQ_API_KEY missing in .env");
-        headers["Authorization"] = `Bearer ${process.env.GROQ_API_KEY}`;
+    if (isApi) {
+        if (!process.env.API_KEY) throw new Error("API_KEY missing in .env");
+        headers["Authorization"] = `Bearer ${process.env.API_KEY}`;
     }
 
     const payload = {
@@ -200,10 +200,15 @@ async function streamAPI(messages, res) {
     let visibleText = "";
     let toolCalls = [];
     
+    // 🛡️ DYNAMIC REGEX ROUTING: Parses syntax correctly based on the engine
+    let toolRegex;
     let toolMatchRegex;
-    if (isGroq) {
+    
+    if (isApi) {
+        toolRegex = /<[|/]?tool_call\|?>?|(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
         toolMatchRegex = /(?:<[|/]?tool_call\|?>?\s*)?(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)\s*(\{[\s\S]*?\})/i;
     } else {
+        toolRegex = /<[|/]?tool_call\|?>?|call:(getProjectStatus|saveToMemory|removeFromMemory|sendEmail|querySupabaseDatabase)/i;
         toolMatchRegex = /(?:<[|/]?tool_call\|?>?\s*)?call:([a-zA-Z0-9_]+)\s*(\{[\s\S]*?\})/i;
     }
 
@@ -231,14 +236,12 @@ async function streamAPI(messages, res) {
                             const tagIndex = tagMatch.index;
                             const textAfterTag = fullText.substring(tagIndex + tag.length);
 
-                            // Check if the model is genuinely executing a tool code block
                             const startsWithTool = validTools.some(t => 
                                 textAfterTag.trim().toLowerCase().startsWith(t.toLowerCase()) ||
                                 textAfterTag.trim().toLowerCase().startsWith('call:' + t.toLowerCase())
                             );
 
                             if (startsWithTool) {
-                                // Real Tool Call in progress -> Silence everything from the stream
                                 const safeChunk = fullText.substring(0, tagIndex);
                                 const newText = safeChunk.substring(visibleText.length);
                                 if (newText.length > 0 && res) {
@@ -246,8 +249,6 @@ async function streamAPI(messages, res) {
                                     visibleText += newText;
                                 }
                             } else {
-                                // If the model typed normal text right after the leaked tag (e.g., <|toolBased), 
-                                // we slice the corrupted tag cleanly out of the memory timeline on-the-fly.
                                 if (textAfterTag.length > 0 && !/^(?:call:)?(?:get|save|remove|send|query)/i.test(textAfterTag.trim())) {
                                     fullText = fullText.substring(0, tagIndex) + textAfterTag;
                                     const newText = fullText.substring(visibleText.length);
@@ -256,7 +257,6 @@ async function streamAPI(messages, res) {
                                         visibleText += newText;
                                     }
                                 } else {
-                                    // It might still be spelling out the tool name -> Hold it in the layout buffer
                                     const safeChunk = fullText.substring(0, tagIndex);
                                     const newText = safeChunk.substring(visibleText.length);
                                     if (newText.length > 0 && res) {
@@ -266,7 +266,6 @@ async function streamAPI(messages, res) {
                                 }
                             }
                         } else {
-                            // Standard lookahead check to prevent token fragment artifacts
                             if (!fullText.endsWith("<") && !fullText.endsWith("<|") && !fullText.endsWith("<|t") && !fullText.endsWith("<|to") && !fullText.endsWith("<|too") && !fullText.endsWith("<|tool") && !fullText.endsWith("call:")) {
                                 const newText = fullText.substring(visibleText.length);
                                 let cleanText = newText.replace(/<end_of_turn>/gi, '').replace(/<eos>/gi, '');
@@ -295,7 +294,6 @@ async function streamAPI(messages, res) {
         return { content: visibleText, tool_calls: toolCalls };
     }
 
-    // Final insurance processing loop to filter out system codes
     let scrubbedText = fullText
         .replace(/<[|/]?tool_call\|?>?/gi, '')
         .replace(/call:/gi, '')
@@ -318,7 +316,7 @@ async function runAgent(userPrompt, res) {
     const knownProjects = global.systemCache.projects.map(p => p.name || p.id).join(', ') || "No projects synced.";
     
     const mode = (process.env.AI_MODE || "local").trim().toLowerCase();
-    const isGroq = mode === "groq";
+    const isApi = mode === "api";
 
     let toolsInstructions = `[AVAILABLE TOOLS]
 - getProjectStatus { "projectName": "string" }
@@ -330,7 +328,7 @@ async function runAgent(userPrompt, res) {
 TOOL USAGE STRICT RULE:
 If you need to invoke a tool, your ENTIRE response must consist ONLY of the exact tool syntax. Do not narrate your actions. `;
 
-    if (isGroq) {
+    if (isApi) {
         toolsInstructions += `Just output exactly:\n<|tool_call>FunctionName{"key": "value"}`;
     } else {
         toolsInstructions += `Just output exactly:\n<|tool_call>call:FunctionName{"key": "value"}`;
