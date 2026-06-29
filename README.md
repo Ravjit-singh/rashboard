@@ -60,7 +60,7 @@ The installation process is identical regardless of your operating system or har
 1. **Clone the Repository**
 Open your terminal and pull the source code to your local machine:
 \`\`\`bash
-git clone https://github.com/YOUR_USERNAME/rashboard.git
+git clone https://github.com/Ravjit-singh/rashboard.git
 cd rashboard
 \`\`\`
 
