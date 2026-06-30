@@ -111,7 +111,6 @@ The Node.js server will initialize, establish the memory cache, and begin listen
 ## 6. R liteRT Native Integration (Offline Mobile)
 Rashboard is heavily optimized to run on mobile processors using a dual-server Android environment. To achieve a 100% offline, hardware-accelerated experience on your mobile device, Rashboard pairs directly with the **R liteRT** engine.
 **📥 Get the Engine:** [Download R liteRT from the Official Repository](https://github.com/Ravjit-singh/Rlitert/releases)
-
 **Deployment Workflow:**
  1. Install the **R liteRT** native APK from the link above.
  2. Load your desired .litertlm model into your device's Downloads/RashboardModels/ folder and initialize the protocol in the app to open port 8080.
