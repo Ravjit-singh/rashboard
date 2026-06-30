@@ -72,7 +72,6 @@ npm install
 cp .env.example .env
 
 ```
-*(Note: Never commit your raw .env file to version control. Always use the template provided.)*
 ## 5. Environment Configuration (The Switch)
 Open the .env file in your preferred editor. You must instruct the engine on how to process inference by setting the AI_MODE variable.
 ### Option A: Cloud API Mode (Recommended for Speed)
