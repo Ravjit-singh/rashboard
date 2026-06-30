@@ -62,8 +62,7 @@ The installation process is identical regardless of your operating system or har
 
 ```env
 # 1. Clone the Repository
-git clone [https://github.com/Ravjit-singh/Rashboard.git](https://github.com/Ravjit-singh/Rashboard.git)
-cd Rashboard
+git clone https://github.com/Ravjit-singh/Rashboard.git
 
 # 2. Install Core Dependencies
 npm install
