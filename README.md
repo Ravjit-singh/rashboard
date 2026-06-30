@@ -97,9 +97,9 @@ To utilize the sendEmail tool, provide your mail server credentials. If using Gm
 ```env
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=ravjitsingh4444@gmail.com
+SMTP_USER=abc@xyz.com
 SMTP_PASS=your_16_digit_app_password
-SMTP_FROM="Rashboard Core" <ravjitsingh4444@gmail.com>
+SMTP_FROM="Rashboard" <abc@xyz.com>
 
 ```
 Once configured, boot the application:
