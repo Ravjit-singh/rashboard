@@ -78,7 +78,7 @@ Open the .env file in your preferred editor. You must instruct the engine on how
 This mode connects your dashboard to a cloud-hosted model. It is compatible with any OpenAI-standard endpoint.
 ```env
 AI_MODE=api
-API_BASE_URL=[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)
+API_BASE_URL=https://api.groq.com/openai/v1/chat/completions
 API_KEY=your_secure_api_key_here
 API_MODEL=llama-3.1-8b-instant
 
