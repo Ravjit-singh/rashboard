@@ -60,7 +60,7 @@ Rashboard is hardware-agnostic and designed to run on heavy desktop rigs or cons
 
 The installation process is identical regardless of your operating system or hardware environment. 
 
-```bash
+```env
 # 1. Clone the Repository
 git clone [https://github.com/Ravjit-singh/Rashboard.git](https://github.com/Ravjit-singh/Rashboard.git)
 cd Rashboard
