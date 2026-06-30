@@ -87,7 +87,7 @@ API_MODEL=llama-3.1-8b-instant
 This mode completely disconnects Rashboard from the internet, routing all queries to a local inference engine running on a dedicated port.
 ```env
 AI_MODE=local
-LOCAL_API_URL=[http://127.0.0.1:8080/v1/chat/completions](http://127.0.0.1:8080/v1/chat/completions)
+LOCAL_API_URL=http://127.0.0.1:8080/v1/chat/completions
 LOCAL_MODEL=gemma-4-e2b-it
 
 ```
