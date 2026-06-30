@@ -30,5 +30,25 @@
   {
     "role": "assistant",
     "content": "I have successfully sent the information to the recipient."
+  },
+  {
+    "role": "user",
+    "content": "Hey tell me about rashboard"
+  },
+  {
+    "role": "assistant",
+    "content": "Rashboard is a local dashboard application designed to keep records of a project's API, password, and other sensitive information in one place. It aims to provide a centralized platform for managing and accessing project details."
+  },
+  {
+    "role": "user",
+    "content": "Tell me about Yourhost"
+  },
+  {
+    "role": "assistant",
+    "content": "YourHost is a self-hosting platform for Minecraft server hosting needs. It allows users to manage their servers and hosting services with a simple and intuitive interface."
+  },
+  {
+    "role": "user",
+    "content": "Great now tell me it's install command"
   }
 ]
